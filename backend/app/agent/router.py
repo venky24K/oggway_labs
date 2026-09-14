@@ -53,43 +53,46 @@ class AgentRouter:
         """
         msg = message.strip()
         msg_lower = msg.lower()
+        # Collapse 3+ repeating characters (e.g. 'hiiiiii' -> 'hii', 'heyyy' -> 'heyy')
+        msg_normalized = re.sub(r'(.)\1{2,}', r'\1\1', msg_lower)
 
         # 1. Ship 30 Skill
-        if any(phrase in msg_lower for phrase in ["ship 30", "ship30", "atomic essay", "1250 words", "viral essay"]):
+        if any(phrase in msg_normalized for phrase in ["ship 30", "ship30", "atomic essay", "1250 words", "viral essay"]):
             return "ship30"
 
         # 2. Artifact Skill
-        if any(phrase in msg_lower for phrase in ["generate artifact", "create html", "growth calculator", "dashboard", "widget", "canvas", "interactive model"]):
+        if any(phrase in msg_normalized for phrase in ["generate artifact", "create html", "growth calculator", "dashboard", "widget", "canvas", "interactive model"]):
             return "artifact"
 
-        # 3. Greetings (Short conversational greetings or salutations)
+        # 3. Greetings (Short conversational greetings, typos, or salutations)
         greeting_patterns = [
-            r"^(hi+|hey+|hello+|howdy|sup|yo|greetings?|gm|gn)[!.\s]*$",
-            r"^(hi|hey|hello|good morning|good afternoon|good evening|howdy)\s*(there|lenny|assistant|bot)?[!.\s\?]*$",
+            r"^(hi+|hey+|hello+|helo|hlo|hllo|howdy|sup|yo|greetings?|gm|gn)[!.\s]*$",
+            r"^(hi|hey|hello|helo|hlo|good morning|good afternoon|good evening|howdy)\s*(there|lenny|assistant|bot)?[!.\s\?]*$",
             r"^what'?s\s*up(\s*there)?[!.\s\?]*$",
-            r"^how('s| is)\s*it\s*going[!.\s\?]*$",
+            r"^how('s|\s+is)\s*it\s*going[!.\s\?]*$",
             r"^how\s*are\s*you(\s*doing)?[!.\s\?]*$"
         ]
-        if any(re.match(p, msg_lower) for p in greeting_patterns):
+        if any(re.match(p, msg_normalized) for p in greeting_patterns):
             return "greeting"
 
-        # 4. Closures (Thanks & Goodbyes)
+        # 4. Closures (Thanks & Goodbyes with typo tolerance)
         closure_patterns = [
-            r"^(thanks?|thank\s+you)(\s+(very\s+much|so\s+much|a\s+lot))?[!.\s]*$",
+            r"^(thanks?|thank\s+you|thanx|thnx)(\s+(very\s+much|so\s+much|a\s+lot))?[!.\s]*$",
             r"^(thx|cheers|appreciate\s+it|much\s+appreciated)[!.\s]*$",
             r"^(bye|goodbye|see\s+(ya|you(\s+later)?)|cya|have\s+a\s+good\s+(day|one|night)|take\s+care)[!.\s]*$"
         ]
-        if any(re.match(p, msg_lower) for p in closure_patterns):
+        if any(re.match(p, msg_normalized) for p in closure_patterns):
             return "closure"
 
-        # 5. Meta Inquiries (Capabilities, identity, architecture)
+        # 5. Meta Inquiries (Capabilities, identity, architecture with shorthand tolerance)
         meta_triggers = [
-            "who are you", "what can you do", "what are you", "what is this app",
+            "who are you", "who r u", "who ru", "what can you do", "wat can u do", 
+            "wht can u do", "what are you", "what is this app",
             "tell me about yourself", "how do you work", "what do you do",
             "what models do you support", "what is the lenny assistant"
         ]
-        clean_msg = re.sub(r"[^\w\s]", "", msg_lower).strip()
-        if any(clean_msg == trigger or msg_lower.startswith(trigger) for trigger in meta_triggers):
+        clean_msg = re.sub(r"[^\w\s]", "", msg_normalized).strip()
+        if any(clean_msg == trigger or msg_normalized.startswith(trigger) for trigger in meta_triggers):
             return "meta"
 
         # 6. Out-of-scope trivia / non-product inquiries

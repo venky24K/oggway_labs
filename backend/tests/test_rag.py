@@ -29,3 +29,16 @@ def test_retriever_unrelated_query():
     results = retriever.search("xyz987quantumastrophysicsdarkmatter", top_k=5)
     # BM25 will return empty or score 0
     assert len(results) == 0
+
+def test_retriever_fuzzy_guest_typo_matching():
+    retriever = get_retriever()
+    # Query with typo 'Elana Verna' instead of 'Elena Verna'
+    results_elena = retriever.search("What does Elana Verna say about B2B PLG?", top_k=3)
+    assert len(results_elena) > 0
+    assert any("Elena Verna" in r["guest"] for r in results_elena)
+
+    # Query with typo 'Brian Cheski' instead of 'Brian Chesky'
+    results_chesky = retriever.search("Brian Cheski lessons on founder mode", top_k=3)
+    assert len(results_chesky) > 0
+    assert any("Chesky" in r["guest"] for r in results_chesky)
+

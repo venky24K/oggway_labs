@@ -1,6 +1,7 @@
 import json
 import re
 import math
+import difflib
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from rank_bm25 import BM25Okapi
@@ -60,7 +61,7 @@ class HybridRetriever:
         guest_filter: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        Executes hybrid search with BM25 + entity recognition + RRF.
+        Executes hybrid search with BM25 + entity recognition + RRF + fuzzy typo tolerance.
         """
         if not self._is_ready or not self.bm25 or not self.chunks:
             return []
@@ -69,15 +70,32 @@ class HybridRetriever:
         if not query_tokens:
             return []
 
-        # 1. Lexical BM25 Scores
-        bm25_scores = self.bm25.get_scores(query_tokens)
-        
-        # 2. Check if user mentioned specific guests in query
         query_lower = query.lower()
+
+        # Check if user mentioned specific guests in query (exact match)
         matched_guests = [
             guest_norm for guest_key, guest_norm in self.guest_names.items()
             if guest_key in query_lower
         ]
+
+        # Fuzzy guest tolerance (handles typos like 'Elana Verna' or 'Brian Cheski')
+        if not matched_guests and len(query_tokens) >= 1:
+            for n in [2, 3, 1]:
+                for i in range(len(query_tokens) - n + 1):
+                    phrase = " ".join(query_tokens[i:i+n])
+                    if len(phrase) >= 4:
+                        close = difflib.get_close_matches(phrase, list(self.guest_names.keys()), n=1, cutoff=0.82)
+                        if close:
+                            guest_norm = self.guest_names[close[0]]
+                            if guest_norm not in matched_guests:
+                                matched_guests.append(guest_norm)
+                            # Expand query tokens with corrected guest name tokens for BM25
+                            for t in self._tokenize(close[0]):
+                                if t not in query_tokens:
+                                    query_tokens.append(t)
+
+        # 1. Lexical BM25 Scores with query tokens (including fuzzy corrections)
+        bm25_scores = self.bm25.get_scores(query_tokens)
 
         # 3. Combine scores with Entity & Keyword Boost
         scored_candidates = []
