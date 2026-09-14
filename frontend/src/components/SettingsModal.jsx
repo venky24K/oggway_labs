@@ -38,12 +38,6 @@ const DEFAULT_MODELS = [
   { id: 'claude-3-5-haiku-20241022', name: 'claude-3-5-haiku-20241022', provider: 'anthropic', providerLabel: 'Anthropic', category: 'Cloud' },
   { id: 'claude-3-opus-20240229', name: 'claude-3-opus-20240229', provider: 'anthropic', providerLabel: 'Anthropic', category: 'Cloud' },
 
-  // Ollama (Local)
-  { id: 'llama3.2', name: 'llama3.2', provider: 'ollama', providerLabel: 'Ollama', category: 'Local' },
-  { id: 'mistral', name: 'mistral', provider: 'ollama', providerLabel: 'Ollama', category: 'Local' },
-  { id: 'deepseek-r1:8b', name: 'deepseek-r1:8b', provider: 'ollama', providerLabel: 'Ollama', category: 'Local' },
-  { id: 'phi3', name: 'phi3', provider: 'ollama', providerLabel: 'Ollama', category: 'Local' },
-
   // Deterministic Fallback
   { id: 'fallback-rag', name: 'Grounded Fallback Engine', provider: 'fallback', providerLabel: 'Fallback', category: 'Local' }
 ];
@@ -61,8 +55,9 @@ export default function SettingsModal({
 }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'models'); // 'models' | 'local' | 'main' | 'database'
   const [provider, setProvider] = useState(currentProvider || 'ollama');
-  const [activeModelId, setActiveModelId] = useState(currentModel || 'llama3.2');
+  const [activeModelId, setActiveModelId] = useState(currentModel || 'fallback-rag');
   const [searchFilter, setSearchFilter] = useState('');
+  const [modelToDelete, setModelToDelete] = useState(null);
 
   // Custom added models (persisted in localStorage)
   const [customModels, setCustomModels] = useState(() => {
@@ -80,7 +75,7 @@ export default function SettingsModal({
 
   // Local Ollama
   const [ollamaUrl, setOllamaUrl] = useState('http://127.0.0.1:11434');
-  const [ollamaModel, setOllamaModel] = useState(currentModel || 'llama3.2');
+  const [ollamaModel, setOllamaModel] = useState(currentModel || 'qwen3.5:2b');
   const [detectedModels, setDetectedModels] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [ollamaConnected, setOllamaConnected] = useState(false);
@@ -123,30 +118,6 @@ export default function SettingsModal({
     }
   }, [modelStatus]);
 
-  if (!isOpen) return null;
-
-  // Merge dynamic detected Ollama models
-  const dynamicOllamaModels = detectedModels
-    .filter((dm) => !DEFAULT_MODELS.some((m) => m.id === dm) && !customModels.some((m) => m.id === dm))
-    .map((dm) => ({
-      id: dm,
-      name: dm,
-      provider: 'ollama',
-      providerLabel: 'Ollama',
-      category: 'Local'
-    }));
-
-  // Combined models catalog: Default predefined models first, then auto-detected Ollama, then custom models at the last!
-  const allModels = [...DEFAULT_MODELS, ...dynamicOllamaModels, ...customModels];
-
-  const filteredModels = searchFilter.trim()
-    ? allModels.filter(
-        (m) =>
-          m.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
-          m.providerLabel.toLowerCase().includes(searchFilter.toLowerCase())
-      )
-    : allModels;
-
   // Check if provider has an API key configured (for cloud providers) or is local/fallback
   const isProviderConfigured = (p) => {
     if (p === 'fallback' || p === 'ollama') return true;
@@ -161,6 +132,65 @@ export default function SettingsModal({
     }
     return false;
   };
+
+  const isModelAvailable = (m) => {
+    if (m.provider === 'fallback') return true;
+    if (m.provider === 'ollama') return true; // Scanned or custom-added Ollama model
+    return isProviderConfigured(m.provider); // Cloud providers
+  };
+
+  // 1. Dynamic detected Ollama models (from scan ONLY - no hardcoded fake models)
+  const dynamicOllamaModels = detectedModels.map((dm) => ({
+    id: dm,
+    name: dm,
+    provider: 'ollama',
+    providerLabel: 'Ollama',
+    category: 'Local'
+  }));
+
+  // 2. Custom models added by user
+  const nonDuplicateCustomModels = customModels.filter(
+    (cm) => !dynamicOllamaModels.some((om) => om.id === cm.id) && !DEFAULT_MODELS.some((m) => m.id === cm.id)
+  );
+
+  // 3. Candidate pool
+  const candidateModels = [
+    ...dynamicOllamaModels,
+    ...DEFAULT_MODELS.filter((m) => m.provider === 'fallback'),
+    ...nonDuplicateCustomModels,
+    ...DEFAULT_MODELS.filter((m) => m.provider !== 'fallback')
+  ];
+
+  // Separate available vs unavailable models:
+  // Available models (not disabled by API key) go to TOP!
+  // Unavailable models (missing API key) go to BOTTOM!
+  const availableModels = candidateModels.filter((m) => isModelAvailable(m));
+  const unavailableModels = candidateModels.filter((m) => !isModelAvailable(m));
+  const allModels = [...availableModels, ...unavailableModels];
+
+  // Auto-select first available model if current activeModelId is invalid
+  useEffect(() => {
+    if (availableModels.length > 0) {
+      const isCurrentActiveValid = availableModels.some(
+        (m) => m.id === activeModelId || m.name === activeModelId
+      );
+      if (!isCurrentActiveValid) {
+        const first = availableModels[0];
+        setActiveModelId(first.id);
+        setProvider(first.provider);
+      }
+    }
+  }, [detectedModels, availableModels.length]);
+
+  if (!isOpen) return null;
+
+  const filteredModels = searchFilter.trim()
+    ? allModels.filter(
+        (m) =>
+          m.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+          m.providerLabel.toLowerCase().includes(searchFilter.toLowerCase())
+      )
+    : allModels;
 
   // Check if a model is currently active
   const isModelActive = (m) => {
@@ -221,7 +251,7 @@ export default function SettingsModal({
     }
   };
 
-  // Delete custom model
+  // Delete custom model with safe active model fallback
   const handleDeleteCustomModel = (modelId) => {
     const updated = customModels.filter((m) => m.id !== modelId);
     setCustomModels(updated);
@@ -229,6 +259,17 @@ export default function SettingsModal({
       localStorage.setItem('lenny_custom_models', JSON.stringify(updated));
     } catch (e) {
       console.error('Failed to delete custom model:', e);
+    }
+
+    if (activeModelId === modelId) {
+      const remaining = availableModels.filter((m) => m.id !== modelId);
+      if (remaining.length > 0) {
+        const next = remaining[0];
+        setActiveModelId(next.id);
+        setProvider(next.provider);
+        if (onChangeProvider) onChangeProvider(next.provider);
+        if (onChangeModel) onChangeModel(next.id);
+      }
     }
   };
 
@@ -410,8 +451,8 @@ export default function SettingsModal({
                             <button
                               type="button"
                               className="custom-model-delete-btn"
-                              onClick={() => handleDeleteCustomModel(m.id)}
-                              title="Remove model"
+                              onClick={() => setModelToDelete(m)}
+                              title={`Delete ${m.name}`}
                             >
                               <Trash2 size={13} />
                             </button>
@@ -732,6 +773,40 @@ export default function SettingsModal({
             </button>
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {modelToDelete && (
+          <div className="delete-confirm-overlay" onClick={() => setModelToDelete(null)}>
+            <div className="delete-confirm-card" onClick={(e) => e.stopPropagation()}>
+              <div className="delete-confirm-header">
+                <Trash2 size={18} />
+                <div className="delete-confirm-title">Delete Model</div>
+              </div>
+              <p className="delete-confirm-desc">
+                Are you sure you want to delete model <strong>{modelToDelete.name}</strong> ({modelToDelete.providerLabel})? This will permanently remove it from your models list.
+              </p>
+              <div className="delete-confirm-actions">
+                <button
+                  type="button"
+                  className="delete-confirm-cancel-btn"
+                  onClick={() => setModelToDelete(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="delete-confirm-btn"
+                  onClick={() => {
+                    handleDeleteCustomModel(modelToDelete.id);
+                    setModelToDelete(null);
+                  }}
+                >
+                  Delete Model
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

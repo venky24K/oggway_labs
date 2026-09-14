@@ -22,13 +22,12 @@ import CitationBadge from './components/CitationBadge';
 import SettingsModal from './components/SettingsModal';
 
 const QUICK_MODELS = [
-  { id: 'llama3.2', name: 'llama3.2', provider: 'ollama' },
-  { id: 'mistral', name: 'mistral', provider: 'ollama' },
+  { id: 'gemini-3.1-pro', name: 'gemini-3.1-pro', provider: 'gemini' },
+  { id: 'gemini-3.6-flash', name: 'gemini-3.6-flash', provider: 'gemini' },
   { id: 'gpt-4o', name: 'gpt-4o', provider: 'openai' },
   { id: 'gpt-4o-mini', name: 'gpt-4o-mini', provider: 'openai' },
   { id: 'claude-3-5-sonnet-20241022', name: 'claude-3-5-sonnet', provider: 'anthropic' },
   { id: 'claude-3-5-haiku-20241022', name: 'claude-3-5-haiku', provider: 'anthropic' },
-  { id: 'gemini-3.1-pro', name: 'gemini-3.1-pro', provider: 'gemini' },
   { id: 'fallback-rag', name: 'Grounded Fallback', provider: 'fallback' }
 ];
 
@@ -42,7 +41,7 @@ export default function App() {
   const [isArtifactExpanded, setIsArtifactExpanded] = useState(false);
   const [modelStatus, setModelStatus] = useState(null);
   const [currentProvider, setCurrentProvider] = useState('ollama');
-  const [currentModel, setCurrentModel] = useState('llama3.2');
+  const [currentModel, setCurrentModel] = useState('qwen3.5:2b');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState('models');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -80,7 +79,7 @@ export default function App() {
     return Boolean(modelStatus?.available_providers?.includes(prov));
   };
 
-  // Build the list of visible models for the dropdown (6-8 models max, filtered by API key availability)
+  // Build the list of visible models for the dropdown (6-8 models max, only scanned Ollama + available cloud/fallback models)
   const getDropdownModels = () => {
     let customList = [];
     try {
@@ -88,9 +87,9 @@ export default function App() {
       if (saved) customList = JSON.parse(saved);
     } catch {}
 
-    const combined = [...QUICK_MODELS];
+    const combined = [];
 
-    // Add detected Ollama models if any
+    // 1. Add ONLY detected Ollama models from scan
     if (modelStatus?.ollama_models) {
       modelStatus.ollama_models.forEach((om) => {
         if (!combined.some((m) => m.id === om)) {
@@ -99,24 +98,39 @@ export default function App() {
       });
     }
 
-    // Add custom models at the end
+    // 2. Add Grounded Fallback
+    combined.push({ id: 'fallback-rag', name: 'Grounded Fallback', provider: 'fallback' });
+
+    // 3. Add configured Cloud models (only if provider has an API key!)
+    QUICK_MODELS.forEach((qm) => {
+      if (qm.provider !== 'fallback' && isProviderAvailable(qm.provider)) {
+        if (!combined.some((m) => m.id === qm.id)) {
+          combined.push(qm);
+        }
+      }
+    });
+
+    // 4. Add custom models if their provider is available
     customList.forEach((cm) => {
-      if (!combined.some((m) => m.id === cm.id)) {
+      if (isProviderAvailable(cm.provider) && !combined.some((m) => m.id === cm.id)) {
         combined.push({ id: cm.id, name: cm.name, provider: cm.provider });
       }
     });
 
-    // If main providers lack API key, do not show in dropdown
-    return combined
-      .filter((m) => isProviderAvailable(m.provider))
-      .slice(0, 8);
+    return combined.slice(0, 8);
   };
 
-  // Ensure currentProvider has an API key configured, otherwise fallback to local/fallback
+  // Ensure currentProvider & currentModel are available and valid
   useEffect(() => {
-    if (modelStatus?.available_providers) {
+    if (modelStatus) {
       const isCurrentAvailable = isProviderAvailable(currentProvider);
-      if (!isCurrentAvailable) {
+      const isCurrentOllamaValid =
+        currentProvider !== 'ollama' ||
+        !modelStatus.ollama_models ||
+        modelStatus.ollama_models.length === 0 ||
+        modelStatus.ollama_models.includes(currentModel);
+
+      if (!isCurrentAvailable || !isCurrentOllamaValid) {
         if (modelStatus.ollama_available && modelStatus.ollama_models?.length) {
           setCurrentProvider('ollama');
           setCurrentModel(modelStatus.ollama_models[0]);
