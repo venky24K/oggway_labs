@@ -19,6 +19,26 @@ async def test_models_endpoint(client):
     assert "fallback" in data["available_providers"]
 
 @pytest.mark.asyncio
+async def test_settings_endpoints(client):
+    # 1. GET /api/settings
+    get_res = await client.get("/api/settings")
+    assert get_res.status_code == 200
+    data = get_res.json()
+    assert "provider" in data
+    assert "database_type" in data
+    assert "has_openai_key" in data
+
+    # 2. POST /api/settings (update provider and test safe key handling)
+    post_res = await client.post("/api/settings", json={
+        "provider": "fallback",
+        "openai_key": ""
+    })
+    assert post_res.status_code == 200
+    post_data = post_res.json()
+    assert post_data["status"] == "success"
+    assert post_data["current_provider"] == "fallback"
+
+@pytest.mark.asyncio
 async def test_sessions_lifecycle(client):
     # 1. Create session
     create_res = await client.post("/api/sessions", json={"title": "Test PLG Strategy"})

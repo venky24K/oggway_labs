@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# Add project root to sys.path so 'pytest' works cleanly from any directory
+root_dir = str(Path(__file__).resolve().parent.parent.parent)
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
