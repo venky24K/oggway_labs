@@ -86,10 +86,11 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     }
 
 @app.get(f"{settings.API_PREFIX}/models", response_model=ModelStatusResponse, tags=["System"])
-async def get_models_status():
+async def get_models_status(endpoint: Optional[str] = None):
     """Returns available model providers, Ollama status, and models."""
     retriever = get_retriever()
-    ollama = OllamaProvider()
+    ollama_url = endpoint or settings.OLLAMA_BASE_URL
+    ollama = OllamaProvider(base_url=ollama_url)
     ollama_ok = await ollama.check_health()
     ollama_models = await ollama.list_models() if ollama_ok else []
 
@@ -104,13 +105,50 @@ async def get_models_status():
     return ModelStatusResponse(
         ollama_available=ollama_ok,
         ollama_models=ollama_models,
-        current_provider=settings.DEFAULT_PROVIDER if ollama_ok else "fallback",
+        current_provider=settings.DEFAULT_PROVIDER,
         available_providers=available,
         database_connected=True,
         database_type="sqlite" if using_sqlite else "postgresql",
         indexed_episodes=len(retriever.catalog),
         indexed_chunks=len(retriever.chunks)
     )
+
+from pydantic import BaseModel
+
+class SettingsUpdatePayload(BaseModel):
+    provider: Optional[str] = None
+    ollama_url: Optional[str] = None
+    ollama_model: Optional[str] = None
+    openai_key: Optional[str] = None
+    openai_model: Optional[str] = None
+    openai_base_url: Optional[str] = None
+    anthropic_key: Optional[str] = None
+    anthropic_model: Optional[str] = None
+    database_url: Optional[str] = None
+
+@app.post(f"{settings.API_PREFIX}/settings", tags=["System"])
+async def update_settings(payload: SettingsUpdatePayload):
+    """Updates runtime configuration in memory."""
+    if payload.provider:
+        settings.DEFAULT_PROVIDER = payload.provider
+    if payload.ollama_url:
+        settings.OLLAMA_BASE_URL = payload.ollama_url
+    if payload.ollama_model:
+        settings.OLLAMA_MODEL = payload.ollama_model
+    if payload.openai_key is not None:
+        settings.OPENAI_API_KEY = payload.openai_key
+    if payload.openai_model:
+        settings.OPENAI_MODEL = payload.openai_model
+    if payload.openai_base_url is not None:
+        settings.OPENAI_BASE_URL = payload.openai_base_url if payload.openai_base_url.strip() else None
+    if payload.anthropic_key is not None:
+        settings.ANTHROPIC_API_KEY = payload.anthropic_key
+    if payload.anthropic_model:
+        settings.ANTHROPIC_MODEL = payload.anthropic_model
+    if payload.database_url:
+        settings.DATABASE_URL = payload.database_url
+
+    return {"status": "success", "current_provider": settings.DEFAULT_PROVIDER}
 
 # ----------------- Session Endpoints ----------------- #
 

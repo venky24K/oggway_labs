@@ -68,17 +68,62 @@ except Exception as e:
     )
     using_sqlite = True
 
+# Always maintain an initialized SQLite fallback engine
+sqlite_engine = create_async_engine(
+    settings.SQLITE_FALLBACK_URL,
+    connect_args={"check_same_thread": False},
+    echo=False
+)
+SqliteSessionLocal = async_sessionmaker(
+    bind=sqlite_engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
+
 async def get_db():
-    """Dependency that provides an async database session."""
-    async with AsyncSessionLocal() as session:
+    """Dependency providing database session with automatic SQLite fallback."""
+    global using_sqlite
+    if using_sqlite:
+        async with SqliteSessionLocal() as session:
+            try:
+                yield session
+            finally:
+                await session.close()
+    else:
         try:
-            yield session
-        finally:
-            await session.close()
+            async with AsyncSessionLocal() as session:
+                try:
+                    yield session
+                finally:
+                    await session.close()
+        except Exception as e:
+            logger.warning(f"PostgreSQL connection error: {e}. Falling back to SQLite.")
+            async with SqliteSessionLocal() as session:
+                try:
+                    yield session
+                finally:
+                    await session.close()
 
 async def init_db():
-    """Initializes database schema tables."""
+    """Initializes tables in both Supabase PostgreSQL (if reachable) and SQLite."""
+    global engine, AsyncSessionLocal, using_sqlite
     from backend.app.models import SessionModel, MessageModel, ArtifactModel
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info(f"Database initialized successfully (Driver: {'SQLite' if using_sqlite else 'PostgreSQL/Supabase'}).")
+
+    # 1. Always ensure local SQLite tables are initialized
+    try:
+        async with sqlite_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except Exception as e:
+        logger.warning(f"Error initializing SQLite fallback: {e}")
+
+    # 2. If PostgreSQL is configured, initialize it
+    if not using_sqlite:
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database initialized successfully (Driver: PostgreSQL/Supabase).")
+        except Exception as e:
+            logger.warning(f"Could not reach PostgreSQL on current network ({e}). Switched to local SQLite persistence.")
+            using_sqlite = True
+            engine = sqlite_engine
+            AsyncSessionLocal = SqliteSessionLocal
