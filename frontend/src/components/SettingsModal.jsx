@@ -352,7 +352,7 @@ export default function SettingsModal({
         {/* Header */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Server size={20} color="#38bdf8" />
+            <Server size={20} color="var(--accent-primary)" />
             <div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Settings & Model Management</h3>
               <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
@@ -664,7 +664,7 @@ export default function SettingsModal({
 
                 {/* OpenAI Custom Base URL */}
                 <div className="local-endpoint-section">
-                  <label className="local-endpoint-label" style={{ fontSize: '0.84rem', color: '#94a3b8' }}>
+                  <label className="local-endpoint-label" style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
                     OpenAI Base URL (Optional)
                   </label>
                   <input
@@ -713,7 +713,7 @@ export default function SettingsModal({
                 <div className="local-endpoint-section">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <div className="pulse-dot" />
-                    <span style={{ fontWeight: 600, color: '#34d399', fontSize: '0.86rem' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--accent-emerald)', fontSize: '0.86rem' }}>
                       Supabase PostgreSQL Connected & Active
                     </span>
                   </div>
@@ -734,15 +734,15 @@ export default function SettingsModal({
                 <div className="local-endpoint-section" style={{ marginTop: 8 }}>
                   <label className="local-endpoint-label">Knowledge Base Metadata</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: '0.84rem' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: 12, borderRadius: 6 }}>
+                    <div style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', padding: 12, borderRadius: 6 }}>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>EPISODES INDEXED</div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#38bdf8', marginTop: 4 }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-secondary)', marginTop: 4 }}>
                         {modelStatus?.indexed_episodes || 303}
                       </div>
                     </div>
-                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: 12, borderRadius: 6 }}>
+                    <div style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)', padding: 12, borderRadius: 6 }}>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>TRANSCRIPT SEGMENTS</div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#818cf8', marginTop: 4 }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-primary)', marginTop: 4 }}>
                         {modelStatus?.indexed_chunks || 15194}
                       </div>
                     </div>
@@ -756,7 +756,7 @@ export default function SettingsModal({
         {/* Footer */}
         <div className="modal-footer">
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            Selected Model: <strong style={{ color: '#f8fafc' }}>{activeModelId}</strong> ({provider})
+            Selected Model: <strong style={{ color: 'var(--text-primary)' }}>{activeModelId}</strong> ({provider})
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>

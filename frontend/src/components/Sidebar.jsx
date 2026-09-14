@@ -74,7 +74,7 @@ export default function Sidebar({
           style={{ width: '100%', justifyContent: 'flex-start' }}
           onClick={() => onSelectQuickPrompt("What does Elena Verna say about B2B Product-Led Growth vs Sales-Led?")}
         >
-          <Sparkles size={12} color="#818cf8" />
+          <Sparkles size={12} color="var(--accent-primary)" />
           <span>Elena Verna: PLG vs SLG</span>
         </button>
 
@@ -83,7 +83,7 @@ export default function Sidebar({
           style={{ width: '100%', justifyContent: 'flex-start' }}
           onClick={() => onSelectQuickPrompt("What are Brian Chesky's key lessons on Founder Mode and product playbooks?")}
         >
-          <Sparkles size={12} color="#38bdf8" />
+          <Sparkles size={12} color="var(--accent-secondary)" />
           <span>Brian Chesky: Founder Mode</span>
         </button>
 
@@ -92,7 +92,7 @@ export default function Sidebar({
           style={{ width: '100%', justifyContent: 'flex-start' }}
           onClick={() => onSelectQuickPrompt("Write a Ship 30 for 30 essay on finding Product-Market Fit based on Lenny's Podcast")}
         >
-          <BookOpen size={12} color="#f59e0b" />
+          <BookOpen size={12} color="var(--accent-amber)" />
           <span>Ship 30 for 30 Essay</span>
         </button>
 
@@ -101,7 +101,7 @@ export default function Sidebar({
           style={{ width: '100%', justifyContent: 'flex-start' }}
           onClick={() => onSelectQuickPrompt("Generate an interactive Growth & Retention Model calculator HTML artifact")}
         >
-          <BarChart2 size={12} color="#10b981" />
+          <BarChart2 size={12} color="var(--accent-emerald)" />
           <span>Interactive Calculator</span>
         </button>
       </div>

@@ -45,7 +45,13 @@ export default function App() {
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState('models');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('lenny_theme') || 'light';
+    } catch {
+      return 'light';
+    }
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
 
@@ -66,6 +72,9 @@ export default function App() {
   // Initialize theme
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('lenny_theme', theme);
+    } catch {}
   }, [theme]);
 
   // Load initial model status and sessions
@@ -504,8 +513,8 @@ export default function App() {
                         style={{ whiteSpace: 'pre-wrap' }}
                         dangerouslySetInnerHTML={{
                           __html: m.content
-                            .replace(/### (.*?)\n/g, '<h3 style="margin: 10px 0 6px; color: #818cf8;">$1</h3>')
-                            .replace(/#### (.*?)\n/g, '<h4 style="margin: 8px 0 4px; color: #38bdf8;">$1</h4>')
+                            .replace(/### (.*?)\n/g, '<h3 style="margin: 10px 0 6px; color: var(--accent-primary);">$1</h3>')
+                            .replace(/#### (.*?)\n/g, '<h4 style="margin: 8px 0 4px; color: var(--accent-secondary);">$1</h4>')
                             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                             .replace(/\*(.*?)\*/g, '<em>$1</em>')
                         }}
@@ -540,7 +549,7 @@ export default function App() {
                               })
                             }
                           >
-                            <BookOpen size={12} color="#f59e0b" />
+                            <BookOpen size={12} color="var(--accent-amber)" />
                             <span>Ship 30 for 30 Essay</span>
                           </button>
 
@@ -553,7 +562,7 @@ export default function App() {
                               })
                             }
                           >
-                            <Code2 size={12} color="#10b981" />
+                            <Code2 size={12} color="var(--accent-emerald)" />
                             <span>Interactive Artifact</span>
                           </button>
 
@@ -562,7 +571,7 @@ export default function App() {
                             onClick={() => handleCopyMessage(idx, m.content)}
                           >
                             {copiedIndex === idx ? (
-                              <Check size={12} color="#10b981" />
+                              <Check size={12} color="var(--accent-emerald)" />
                             ) : (
                               <Copy size={12} />
                             )}
@@ -583,7 +592,7 @@ export default function App() {
                 <div className="message-row assistant">
                   <div className="avatar assistant">🎙️</div>
                   <div className="bubble assistant" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Sparkles size={16} className="animate-spin" color="#818cf8" />
+                    <Sparkles size={16} className="animate-spin" color="var(--accent-primary)" />
                     <span>Searching Lenny's transcripts and synthesizing grounded response...</span>
                   </div>
                 </div>
@@ -632,6 +641,7 @@ export default function App() {
               onClose={() => setActiveArtifact(null)}
               isExpanded={isArtifactExpanded}
               onToggleExpand={() => setIsArtifactExpanded(!isArtifactExpanded)}
+              theme={theme}
             />
           )}
         </div>

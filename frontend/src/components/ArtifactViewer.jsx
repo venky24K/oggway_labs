@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, Code, Copy, Download, X, Maximize2, Minimize2, ShieldCheck, Check } from 'lucide-react';
 
-export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggleExpand }) {
+export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggleExpand, theme = 'light' }) {
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'code'
   const [copied, setCopied] = useState(false);
 
@@ -25,6 +25,10 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
       return `${cspMeta}${rawHtml}`;
     }
 
+    const isDark = theme === 'dark';
+    const bg = isDark ? '#090d16' : '#ffffff';
+    const fg = isDark ? '#f8fafc' : '#0f172a';
+
     return `
       <!DOCTYPE html>
       <html>
@@ -32,7 +36,7 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
           ${cspMeta}
           <meta charset="utf-8">
           <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 20px; background: #090d16; color: #f8fafc; }
+            body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 20px; background: ${bg}; color: ${fg}; }
           </style>
         </head>
         <body>
@@ -89,7 +93,7 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
         {/* Action Controls */}
         <div className="artifact-actions">
           <button className="btn-icon" onClick={handleCopy} title="Copy code">
-            {copied ? <Check size={14} color="#10b981" /> : <Copy size={14} />}
+            {copied ? <Check size={14} color="var(--accent-emerald)" /> : <Copy size={14} />}
           </button>
           <button className="btn-icon" onClick={handleDownload} title="Download file">
             <Download size={14} />
@@ -134,7 +138,7 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
       {/* Security Status Bar */}
       <div className="security-notice">
         <span style={{ display: 'flex', alignContent: 'center', gap: 6 }}>
-          <ShieldCheck size={14} color="#10b981" />
+          <ShieldCheck size={14} color="var(--accent-emerald)" />
           <strong>Sandboxed Execution:</strong> Isolated origin, no cookies/storage access, strict CSP network lock.
         </span>
         <span style={{ opacity: 0.8 }}>Read-Only Sandbox</span>
