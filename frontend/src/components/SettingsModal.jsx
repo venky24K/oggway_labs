@@ -63,7 +63,7 @@ export default function SettingsModal({
   const [searchFilter, setSearchFilter] = useState('');
 
   // Local Ollama
-  const [ollamaUrl, setOllamaUrl] = useState('http://localhost:11434');
+  const [ollamaUrl, setOllamaUrl] = useState('http://127.0.0.1:11434');
   const [ollamaModel, setOllamaModel] = useState(currentModel || 'llama3.2');
   const [detectedModels, setDetectedModels] = useState([]);
   const [scanning, setScanning] = useState(false);
@@ -329,157 +329,82 @@ export default function SettingsModal({
               </div>
             )}
 
-            {/* 2. LOCAL PROVIDERS TAB */}
+            {/* 2. LOCAL PROVIDERS TAB (Matching Reference Image) */}
             {activeTab === 'local' && (
-              <>
-                <div className="settings-banner">
-                  <strong>Local Intelligence:</strong> This application can access any model that you host locally.
-                  We automatically detect your local models by default.
-                </div>
+              <div className="local-providers-view">
+                <h2 className="local-providers-title">Local Providers</h2>
+                <p className="local-providers-desc">
+                  This app can access any model that you host locally. We automatically detect your local models by default.
+                </p>
 
-                {/* Live Connection & Model Scanner */}
-                <div className="instructions-card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <h4 style={{ margin: 0 }}>
-                      <Cpu size={16} color="#818cf8" />
-                      <span>Local Ollama Detection</span>
-                    </h4>
-                    <button
-                      className="btn-action-chip"
-                      onClick={handleScanOllamaModels}
-                      disabled={scanning}
-                      style={{ padding: '6px 12px' }}
-                    >
-                      <RefreshCw size={12} className={scanning ? 'animate-spin' : ''} />
-                      <span>{scanning ? 'Scanning...' : 'Scan Local Models'}</span>
-                    </button>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.84rem', marginBottom: 12 }}>
-                    <div className={`pulse-dot ${ollamaConnected ? '' : 'offline'}`} />
-                    <span style={{ fontWeight: 600, color: ollamaConnected ? '#34d399' : '#f59e0b' }}>
-                      {ollamaConnected
-                        ? `Ollama Service Connected at ${ollamaUrl}`
-                        : `Ollama Service Not Detected at ${ollamaUrl}`}
-                    </span>
-                  </div>
-
-                  {/* Detected Models List */}
-                  <div>
-                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      Available Local Models ({detectedModels.length} detected):
-                    </label>
-
-                    {detectedModels.length > 0 ? (
-                      <div className="model-chip-grid">
-                        {detectedModels.map((m) => (
-                          <div
-                            key={m}
-                            className={`model-chip ${activeModelId === m ? 'selected' : ''}`}
-                            onClick={() => {
-                              setOllamaModel(m);
-                              setActiveModelId(m);
-                              setProvider('ollama');
-                            }}
-                          >
-                            <Check size={12} style={{ opacity: activeModelId === m ? 1 : 0 }} />
-                            <span>{m}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          marginTop: 8,
-                          padding: 10,
-                          background: 'rgba(0,0,0,0.3)',
-                          borderRadius: 6,
-                          fontSize: '0.8rem',
-                          color: 'var(--text-muted)'
-                        }}
-                      >
-                        {ollamaConnected
-                          ? 'Ollama is running, but no models are downloaded yet. Pull a model below (e.g. llama3.2) and click Scan!'
-                          : 'Start Ollama or install a model to enable zero-cost local inference.'}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Endpoint Configuration */}
-                <div className="form-group">
-                  <label>Ollama API Endpoint</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={ollamaUrl}
-                    onChange={(e) => setOllamaUrl(e.target.value)}
-                    placeholder="http://localhost:11434"
-                  />
-                  <div style={{ marginTop: 6 }}>
-                    <a
-                      href="https://github.com/ollama/ollama/blob/main/docs/faq.md#how-can-i-expose-ollama-on-my-network"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="external-link"
-                    >
-                      <span>Read more about custom endpoints here</span>
-                      <ExternalLink size={11} />
-                    </a>
-                  </div>
-                </div>
-
-                {/* Setup Instructions from Download to Pull */}
-                <div className="instructions-card">
-                  <h4>
-                    <Terminal size={15} color="#38bdf8" />
-                    <span>Ollama Setup Instructions (Download to Pull)</span>
-                  </h4>
-
-                  <div className="instruction-step">
-                    <div className="step-number">1</div>
-                    <div>
-                      <strong>Download Ollama:</strong> Install Ollama on your machine from{' '}
+                <div className="local-instructions-section">
+                  <div className="local-instructions-heading">Ollama Setup Instructions</div>
+                  <ol className="local-instructions-list">
+                    <li>
+                      1. Download{' '}
                       <a
                         href="https://ollama.com/download"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="external-link"
-                        style={{ display: 'inline', margin: 0 }}
+                        className="local-link"
                       >
-                        ollama.com/download ↗
+                        Ollama
                       </a>
-                    </div>
-                  </div>
-
-                  <div className="instruction-step">
-                    <div className="step-number">2</div>
-                    <div>
-                      <strong>Pull a Recommended Model:</strong> Open your terminal and run:
-                      <div style={{ marginTop: 4 }}>
-                        <span className="code-pill">ollama pull llama3.2</span> or{' '}
-                        <span className="code-pill">ollama pull mistral</span>
+                      .
+                    </li>
+                    <li>2. Open your terminal.</li>
+                    <li>
+                      3. Run <code className="local-code">ollama pull your_model</code> to install a model.
+                      <div className="local-subtext">
+                        This app automatically detects locally running models and enables them.
                       </div>
-                    </div>
-                  </div>
+                    </li>
+                  </ol>
+                </div>
 
-                  <div className="instruction-step">
-                    <div className="step-number">3</div>
-                    <div>
-                      <strong>Start the Server:</strong> Verify Ollama is running in your background or run{' '}
-                      <span className="code-pill">ollama serve</span> (listens on port 11434).
-                    </div>
-                  </div>
-
-                  <div className="instruction-step">
-                    <div className="step-number">4</div>
-                    <div>
-                      <strong>Scan & Select:</strong> Click the <strong>"Scan Local Models"</strong> button above to
-                      populate your model list automatically!
-                    </div>
+                <div className="local-endpoint-section">
+                  <label className="local-endpoint-label">Ollama</label>
+                  <input
+                    type="text"
+                    className="local-endpoint-input"
+                    value={ollamaUrl}
+                    onChange={(e) => setOllamaUrl(e.target.value)}
+                    placeholder="http://127.0.0.1:11434"
+                  />
+                  <div className="local-endpoint-footer">
+                    Read more about custom{' '}
+                    <a
+                      href="https://github.com/ollama/ollama/blob/main/docs/faq.md#how-can-i-expose-ollama-on-my-network"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="local-link"
+                    >
+                      Endpoints here
+                    </a>
+                    .
                   </div>
                 </div>
-              </>
+
+                {/* Subtle detected models indicator if local models exist */}
+                {detectedModels.length > 0 && (
+                  <div className="local-detected-strip">
+                    <span className="local-detected-dot" />
+                    <span>
+                      {detectedModels.length} local {detectedModels.length === 1 ? 'model' : 'models'} detected ({detectedModels.join(', ')})
+                    </span>
+                    <button
+                      type="button"
+                      className="local-rescan-btn"
+                      onClick={handleScanOllamaModels}
+                      disabled={scanning}
+                      title="Rescan local models"
+                    >
+                      <RefreshCw size={11} className={scanning ? 'animate-spin' : ''} />
+                      <span>{scanning ? 'Scanning...' : 'Rescan'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
 
             {/* 3. MAIN PROVIDERS TAB (Cloud Providers: Gemini, OpenAI, Anthropic) */}
