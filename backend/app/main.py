@@ -97,11 +97,11 @@ async def get_models_status(endpoint: Optional[str] = None):
     available = ["fallback"]
     if ollama_ok:
         available.append("ollama")
-    if settings.ANTHROPIC_API_KEY:
+    if settings.ANTHROPIC_API_KEY and len(settings.ANTHROPIC_API_KEY.strip()) > 5:
         available.append("anthropic")
-    if settings.OPENAI_API_KEY:
+    if settings.OPENAI_API_KEY and len(settings.OPENAI_API_KEY.strip()) > 5:
         available.append("openai")
-    if settings.GEMINI_API_KEY:
+    if settings.GEMINI_API_KEY and len(settings.GEMINI_API_KEY.strip()) > 5:
         available.append("gemini")
 
     return ModelStatusResponse(
@@ -156,7 +156,22 @@ async def update_settings(payload: SettingsUpdatePayload):
     if payload.database_url:
         settings.DATABASE_URL = payload.database_url
 
-    return {"status": "success", "current_provider": settings.DEFAULT_PROVIDER}
+    available = ["fallback"]
+    ollama = OllamaProvider(base_url=settings.OLLAMA_BASE_URL)
+    if await ollama.check_health():
+        available.append("ollama")
+    if settings.ANTHROPIC_API_KEY and len(settings.ANTHROPIC_API_KEY.strip()) > 5:
+        available.append("anthropic")
+    if settings.OPENAI_API_KEY and len(settings.OPENAI_API_KEY.strip()) > 5:
+        available.append("openai")
+    if settings.GEMINI_API_KEY and len(settings.GEMINI_API_KEY.strip()) > 5:
+        available.append("gemini")
+
+    return {
+        "status": "success",
+        "current_provider": settings.DEFAULT_PROVIDER,
+        "available_providers": available
+    }
 
 # ----------------- Session Endpoints ----------------- #
 

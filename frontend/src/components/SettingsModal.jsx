@@ -15,7 +15,9 @@ import {
   Key,
   Layers,
   Sparkles,
-  Search
+  Search,
+  ChevronDown,
+  Trash2
 } from 'lucide-react';
 
 const DEFAULT_MODELS = [
@@ -61,6 +63,20 @@ export default function SettingsModal({
   const [provider, setProvider] = useState(currentProvider || 'ollama');
   const [activeModelId, setActiveModelId] = useState(currentModel || 'llama3.2');
   const [searchFilter, setSearchFilter] = useState('');
+
+  // Custom added models (persisted in localStorage)
+  const [customModels, setCustomModels] = useState(() => {
+    try {
+      const saved = localStorage.getItem('lenny_custom_models');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Add Model input bar state
+  const [newModelProvider, setNewModelProvider] = useState('');
+  const [newModelName, setNewModelName] = useState('');
 
   // Local Ollama
   const [ollamaUrl, setOllamaUrl] = useState('http://127.0.0.1:11434');
@@ -109,9 +125,9 @@ export default function SettingsModal({
 
   if (!isOpen) return null;
 
-  // Merge detected models into full catalog
+  // Merge dynamic detected Ollama models
   const dynamicOllamaModels = detectedModels
-    .filter((dm) => !DEFAULT_MODELS.some((m) => m.id === dm))
+    .filter((dm) => !DEFAULT_MODELS.some((m) => m.id === dm) && !customModels.some((m) => m.id === dm))
     .map((dm) => ({
       id: dm,
       name: dm,
@@ -120,7 +136,8 @@ export default function SettingsModal({
       category: 'Local'
     }));
 
-  const allModels = [...DEFAULT_MODELS, ...dynamicOllamaModels];
+  // Combined models catalog: Default predefined models first, then auto-detected Ollama, then custom models at the last!
+  const allModels = [...DEFAULT_MODELS, ...dynamicOllamaModels, ...customModels];
 
   const filteredModels = searchFilter.trim()
     ? allModels.filter(
@@ -129,6 +146,21 @@ export default function SettingsModal({
           m.providerLabel.toLowerCase().includes(searchFilter.toLowerCase())
       )
     : allModels;
+
+  // Check if provider has an API key configured (for cloud providers) or is local/fallback
+  const isProviderConfigured = (p) => {
+    if (p === 'fallback' || p === 'ollama') return true;
+    if (p === 'gemini') {
+      return Boolean((geminiKey && geminiKey.trim().length > 5) || modelStatus?.available_providers?.includes('gemini'));
+    }
+    if (p === 'openai') {
+      return Boolean((openaiKey && openaiKey.trim().length > 5) || modelStatus?.available_providers?.includes('openai'));
+    }
+    if (p === 'anthropic') {
+      return Boolean((anthropicKey && anthropicKey.trim().length > 5) || modelStatus?.available_providers?.includes('anthropic'));
+    }
+    return false;
+  };
 
   // Check if a model is currently active
   const isModelActive = (m) => {
@@ -139,6 +171,8 @@ export default function SettingsModal({
 
   // Toggle model to active
   const handleToggleModel = (m) => {
+    if (!isProviderConfigured(m.provider)) return;
+
     setActiveModelId(m.id);
     setProvider(m.provider);
 
@@ -149,6 +183,53 @@ export default function SettingsModal({
 
     if (onChangeProvider) onChangeProvider(m.provider);
     if (onChangeModel) onChangeModel(m.id);
+  };
+
+  // Add custom model from the Add Model bar
+  const handleAddModel = () => {
+    if (!newModelName.trim() || !newModelProvider) return;
+    const cleanName = newModelName.trim();
+    const providerLabels = {
+      gemini: 'Gemini',
+      ollama: 'Ollama',
+      anthropic: 'Anthropic',
+      openai: 'OpenAI'
+    };
+
+    const newModel = {
+      id: cleanName,
+      name: cleanName,
+      provider: newModelProvider,
+      providerLabel: providerLabels[newModelProvider] || newModelProvider,
+      isCustom: true
+    };
+
+    const updated = [...customModels.filter((m) => m.id !== cleanName), newModel];
+    setCustomModels(updated);
+    try {
+      localStorage.setItem('lenny_custom_models', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save custom model:', e);
+    }
+
+    setNewModelName('');
+    setNewModelProvider('');
+
+    // If provider is configured, activate it
+    if (isProviderConfigured(newModel.provider)) {
+      handleToggleModel(newModel);
+    }
+  };
+
+  // Delete custom model
+  const handleDeleteCustomModel = (modelId) => {
+    const updated = customModels.filter((m) => m.id !== modelId);
+    setCustomModels(updated);
+    try {
+      localStorage.setItem('lenny_custom_models', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to delete custom model:', e);
+    }
   };
 
   // Scan Ollama models dynamically via backend API
@@ -278,7 +359,7 @@ export default function SettingsModal({
 
           {/* Right Section Content */}
           <div className="settings-content-pane">
-            {/* 1. MODELS TAB (Matches User Screenshot) */}
+            {/* 1. MODELS TAB (Matches Reference Screenshot + Add Model Bar) */}
             {activeTab === 'models' && (
               <div className="models-section-view">
                 <div className="models-section-header">
@@ -300,24 +381,49 @@ export default function SettingsModal({
                   </div>
                 </div>
 
-                {/* Models List Table matching the screenshot */}
+                {/* Models List Table matching reference screenshot */}
                 <div className="models-table-container">
                   {filteredModels.map((m) => {
-                    const active = isModelActive(m);
+                    const isConfigured = isProviderConfigured(m.provider);
+                    const active = isConfigured && isModelActive(m);
+
                     return (
                       <div
                         key={`${m.provider}-${m.id}`}
-                        className={`models-table-row ${active ? 'row-active' : ''}`}
-                        onClick={() => handleToggleModel(m)}
+                        className={`models-table-row ${active ? 'row-active' : ''} ${!isConfigured ? 'row-disabled' : ''}`}
+                        onClick={() => {
+                          if (isConfigured) handleToggleModel(m);
+                        }}
+                        title={isConfigured ? '' : `API key required in Main Providers to enable ${m.name}`}
                       >
                         <div className="model-col-provider">{m.providerLabel}</div>
-                        <div className="model-col-name">{m.name}</div>
+                        <div className="model-col-name">
+                          <span>{m.name}</span>
+                          {!isConfigured && (
+                            <span className="model-key-warning">
+                              API key required
+                            </span>
+                          )}
+                        </div>
                         <div className="model-col-toggle" onClick={(e) => e.stopPropagation()}>
-                          <label className="pill-switch">
+                          {m.isCustom && (
+                            <button
+                              type="button"
+                              className="custom-model-delete-btn"
+                              onClick={() => handleDeleteCustomModel(m.id)}
+                              title="Remove model"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                          <label className={`pill-switch ${!isConfigured ? 'disabled' : ''}`}>
                             <input
                               type="checkbox"
                               checked={active}
-                              onChange={() => handleToggleModel(m)}
+                              disabled={!isConfigured}
+                              onChange={() => {
+                                if (isConfigured) handleToggleModel(m);
+                              }}
                             />
                             <span className="pill-slider"></span>
                           </label>
@@ -325,6 +431,58 @@ export default function SettingsModal({
                       </div>
                     );
                   })}
+                </div>
+
+                {/* Add Custom Model Bar (at the LAST, matching reference image) */}
+                <div className="add-model-bar-container">
+                  <div className="add-model-select-wrapper">
+                    <select
+                      value={newModelProvider}
+                      onChange={(e) => setNewModelProvider(e.target.value)}
+                      className="add-model-select"
+                    >
+                      <option value="">Provider Name</option>
+                      <option value="gemini">Gemini</option>
+                      <option value="ollama">Ollama</option>
+                      <option value="anthropic">Anthropic</option>
+                      <option value="openai">OpenAI</option>
+                    </select>
+                    <ChevronDown size={13} className="add-model-select-arrow" />
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Model Name"
+                    value={newModelName}
+                    onChange={(e) => setNewModelName(e.target.value)}
+                    className="add-model-input"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAddModel();
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    className="add-model-submit-btn"
+                    onClick={handleAddModel}
+                    disabled={!newModelName.trim() || !newModelProvider}
+                  >
+                    Add
+                  </button>
+
+                  {(newModelName || newModelProvider) && (
+                    <button
+                      type="button"
+                      className="add-model-cancel-btn"
+                      onClick={() => {
+                        setNewModelName('');
+                        setNewModelProvider('');
+                      }}
+                      title="Clear"
+                    >
+                      ×
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -407,212 +565,149 @@ export default function SettingsModal({
               </div>
             )}
 
-            {/* 3. MAIN PROVIDERS TAB (Cloud Providers: Gemini, OpenAI, Anthropic) */}
+            {/* 3. MAIN PROVIDERS TAB (Matching Minimalist Screenshot Style) */}
             {activeTab === 'main' && (
-              <>
-                <div className="settings-banner">
-                  <strong>Main Cloud Providers:</strong> Configure Google Gemini, OpenAI, or Anthropic Claude API keys.
-                  Keys are stored safely in memory and your local environment.
-                </div>
+              <div className="local-providers-view">
+                <h2 className="local-providers-title">Main Providers</h2>
+                <p className="local-providers-desc">
+                  This app can access external AI providers for high-intelligence cloud reasoning. Keys are stored safely in memory and your local environment.
+                </p>
 
-                {/* Gemini Section */}
-                <div className="instructions-card">
-                  <h4>
-                    <Sparkles size={16} color="#38bdf8" />
-                    <span>Google Gemini Configuration</span>
-                  </h4>
-
-                  <div className="form-group" style={{ marginBottom: 12 }}>
-                    <label>Google Gemini API Key</label>
-                    <input
-                      type="password"
-                      className="form-input"
-                      value={geminiKey}
-                      onChange={(e) => setGeminiKey(e.target.value)}
-                      placeholder="AIzaSy..."
-                    />
-                    <div style={{ marginTop: 4 }}>
-                      <a
-                        href="https://aistudio.google.com/app/apikey"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="external-link"
-                      >
-                        <span>Get your API key here</span>
-                        <ExternalLink size={11} />
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Model</label>
-                    <select
-                      className="form-input"
-                      value={geminiModel}
-                      onChange={(e) => setGeminiModel(e.target.value)}
+                {/* Google Gemini */}
+                <div className="local-endpoint-section">
+                  <label className="local-endpoint-label">Google Gemini</label>
+                  <input
+                    type="password"
+                    className="local-endpoint-input"
+                    value={geminiKey}
+                    onChange={(e) => setGeminiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                  />
+                  <div className="local-endpoint-footer">
+                    Get your API key{' '}
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="local-link"
                     >
-                      <option value="gemini-3.1-pro">gemini-3.1-pro (Flagship Multimodal)</option>
-                      <option value="gemini-3.6-flash">gemini-3.6-flash (Fast & Responsive)</option>
-                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (Advanced Preview)</option>
-                      <option value="gemini-3.1-flash">gemini-3.1-flash (Standard Flash)</option>
-                    </select>
+                      here
+                    </a>
+                    .
                   </div>
                 </div>
 
-                {/* OpenAI Section */}
-                <div className="instructions-card">
-                  <h4>
-                    <Cloud size={16} color="#10b981" />
-                    <span>OpenAI Configuration</span>
-                  </h4>
-
-                  <div className="form-group" style={{ marginBottom: 12 }}>
-                    <label>OpenAI API Key</label>
-                    <input
-                      type="password"
-                      className="form-input"
-                      value={openaiKey}
-                      onChange={(e) => setOpenaiKey(e.target.value)}
-                      placeholder="sk-proj-..."
-                    />
-                    <div style={{ marginTop: 4 }}>
-                      <a
-                        href="https://platform.openai.com/api-keys"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="external-link"
-                      >
-                        <span>Get your API key here</span>
-                        <ExternalLink size={11} />
-                      </a>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div className="form-group">
-                      <label>Model</label>
-                      <select
-                        className="form-input"
-                        value={openaiModel}
-                        onChange={(e) => setOpenaiModel(e.target.value)}
-                      >
-                        <option value="gpt-4o">gpt-4o (Flagship)</option>
-                        <option value="gpt-4o-mini">gpt-4o-mini (Fast & Efficient)</option>
-                        <option value="o1-preview">o1-preview (Reasoning)</option>
-                        <option value="o1-mini">o1-mini (Reasoning Mini)</option>
-                      </select>
-                    </div>
-
-                    <div className="form-group">
-                      <label>Custom Base URL (Optional)</label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={openaiBaseUrl}
-                        onChange={(e) => setOpenaiBaseUrl(e.target.value)}
-                        placeholder="https://api.openai.com/v1"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Anthropic Section */}
-                <div className="instructions-card">
-                  <h4>
-                    <Cloud size={16} color="#f59e0b" />
-                    <span>Anthropic Claude Configuration</span>
-                  </h4>
-
-                  <div className="form-group" style={{ marginBottom: 12 }}>
-                    <label>Anthropic API Key</label>
-                    <input
-                      type="password"
-                      className="form-input"
-                      value={anthropicKey}
-                      onChange={(e) => setAnthropicKey(e.target.value)}
-                      placeholder="sk-ant-api..."
-                    />
-                    <div style={{ marginTop: 4 }}>
-                      <a
-                        href="https://console.anthropic.com/settings/keys"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="external-link"
-                      >
-                        <span>Get your API key here</span>
-                        <ExternalLink size={11} />
-                      </a>
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Model</label>
-                    <select
-                      className="form-input"
-                      value={anthropicModel}
-                      onChange={(e) => setAnthropicModel(e.target.value)}
+                {/* OpenAI */}
+                <div className="local-endpoint-section">
+                  <label className="local-endpoint-label">OpenAI</label>
+                  <input
+                    type="password"
+                    className="local-endpoint-input"
+                    value={openaiKey}
+                    onChange={(e) => setOpenaiKey(e.target.value)}
+                    placeholder="sk-proj-..."
+                  />
+                  <div className="local-endpoint-footer">
+                    Get your API key{' '}
+                    <a
+                      href="https://platform.openai.com/api-keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="local-link"
                     >
-                      <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Recommended)</option>
-                      <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (Fast)</option>
-                      <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-                    </select>
+                      here
+                    </a>
+                    .
                   </div>
                 </div>
-              </>
+
+                {/* OpenAI Custom Base URL */}
+                <div className="local-endpoint-section">
+                  <label className="local-endpoint-label" style={{ fontSize: '0.84rem', color: '#94a3b8' }}>
+                    OpenAI Base URL (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="local-endpoint-input"
+                    value={openaiBaseUrl}
+                    onChange={(e) => setOpenaiBaseUrl(e.target.value)}
+                    placeholder="https://api.openai.com/v1"
+                  />
+                </div>
+
+                {/* Anthropic Claude */}
+                <div className="local-endpoint-section">
+                  <label className="local-endpoint-label">Anthropic Claude</label>
+                  <input
+                    type="password"
+                    className="local-endpoint-input"
+                    value={anthropicKey}
+                    onChange={(e) => setAnthropicKey(e.target.value)}
+                    placeholder="sk-ant-api..."
+                  />
+                  <div className="local-endpoint-footer">
+                    Get your API key{' '}
+                    <a
+                      href="https://console.anthropic.com/settings/keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="local-link"
+                    >
+                      here
+                    </a>
+                    .
+                  </div>
+                </div>
+              </div>
             )}
 
             {/* 4. DATABASE & STORAGE TAB */}
             {activeTab === 'database' && (
-              <>
-                <div className="settings-banner">
-                  <strong>Persistence Engine:</strong> Conversations and generated artifacts are stored in your live
-                  Supabase PostgreSQL database.
-                </div>
+              <div className="local-providers-view">
+                <h2 className="local-providers-title">Database Persistence</h2>
+                <p className="local-providers-desc">
+                  Conversations and generated artifacts are persisted in your live Supabase PostgreSQL database with local SQLite fallback.
+                </p>
 
-                <div className="instructions-card">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <div className="local-endpoint-section">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <div className="pulse-dot" />
-                    <span style={{ fontWeight: 600, color: '#34d399' }}>
+                    <span style={{ fontWeight: 600, color: '#34d399', fontSize: '0.86rem' }}>
                       Supabase PostgreSQL Connected & Active
                     </span>
                   </div>
 
-                  <div className="form-group">
-                    <label>Supabase PostgreSQL Connection URI</label>
-                    <input
-                      type="password"
-                      className="form-input"
-                      value={databaseUrl}
-                      onChange={(e) => setDatabaseUrl(e.target.value)}
-                      placeholder="postgresql://postgres.[ref]:[pass]@aws-0-[region].pooler.supabase.com:5432/postgres"
-                    />
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 6 }}>
-                      Using Session Pooler on port 5432 (IPv4 & IPv6 compatible).
-                    </div>
+                  <label className="local-endpoint-label">Supabase Connection URI</label>
+                  <input
+                    type="password"
+                    className="local-endpoint-input"
+                    value={databaseUrl}
+                    onChange={(e) => setDatabaseUrl(e.target.value)}
+                    placeholder="postgresql://postgres.[ref]:[pass]@aws-0-[region].pooler.supabase.com:5432/postgres"
+                  />
+                  <div className="local-endpoint-footer">
+                    Using Session Pooler on port 5432 (IPv4 & IPv6 compatible).
                   </div>
                 </div>
 
-                <div className="instructions-card">
-                  <h4>
-                    <Info size={15} color="#38bdf8" />
-                    <span>Knowledge Base Metadata</span>
-                  </h4>
+                <div className="local-endpoint-section" style={{ marginTop: 8 }}>
+                  <label className="local-endpoint-label">Knowledge Base Metadata</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: '0.84rem' }}>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8 }}>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>EPISODES INDEXED</div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#38bdf8', marginTop: 4 }}>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: 12, borderRadius: 6 }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>EPISODES INDEXED</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#38bdf8', marginTop: 4 }}>
                         {modelStatus?.indexed_episodes || 303}
                       </div>
                     </div>
-                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8 }}>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>TRANSCRIPT SEGMENTS</div>
-                      <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#818cf8', marginTop: 4 }}>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: 12, borderRadius: 6 }}>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>TRANSCRIPT SEGMENTS</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#818cf8', marginTop: 4 }}>
                         {modelStatus?.indexed_chunks || 15194}
                       </div>
                     </div>
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>

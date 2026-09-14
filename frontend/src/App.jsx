@@ -75,13 +75,68 @@ export default function App() {
     fetchSessions();
   }, []);
 
+  const isProviderAvailable = (prov) => {
+    if (prov === 'fallback' || prov === 'ollama') return true;
+    return Boolean(modelStatus?.available_providers?.includes(prov));
+  };
+
+  // Build the list of visible models for the dropdown (6-8 models max, filtered by API key availability)
+  const getDropdownModels = () => {
+    let customList = [];
+    try {
+      const saved = localStorage.getItem('lenny_custom_models');
+      if (saved) customList = JSON.parse(saved);
+    } catch {}
+
+    const combined = [...QUICK_MODELS];
+
+    // Add detected Ollama models if any
+    if (modelStatus?.ollama_models) {
+      modelStatus.ollama_models.forEach((om) => {
+        if (!combined.some((m) => m.id === om)) {
+          combined.push({ id: om, name: om, provider: 'ollama' });
+        }
+      });
+    }
+
+    // Add custom models at the end
+    customList.forEach((cm) => {
+      if (!combined.some((m) => m.id === cm.id)) {
+        combined.push({ id: cm.id, name: cm.name, provider: cm.provider });
+      }
+    });
+
+    // If main providers lack API key, do not show in dropdown
+    return combined
+      .filter((m) => isProviderAvailable(m.provider))
+      .slice(0, 8);
+  };
+
+  // Ensure currentProvider has an API key configured, otherwise fallback to local/fallback
+  useEffect(() => {
+    if (modelStatus?.available_providers) {
+      const isCurrentAvailable = isProviderAvailable(currentProvider);
+      if (!isCurrentAvailable) {
+        if (modelStatus.ollama_available && modelStatus.ollama_models?.length) {
+          setCurrentProvider('ollama');
+          setCurrentModel(modelStatus.ollama_models[0]);
+        } else {
+          setCurrentProvider('fallback');
+          setCurrentModel('fallback-rag');
+        }
+      }
+    }
+  }, [modelStatus]);
+
   const fetchModelStatus = async () => {
     try {
       const res = await fetch('/api/models');
       if (res.ok) {
         const data = await res.json();
         setModelStatus(data);
-        setCurrentProvider(data.current_provider);
+        if (data.current_provider && (data.available_providers?.includes(data.current_provider) || data.current_provider === 'ollama' || data.current_provider === 'fallback')) {
+          setCurrentProvider(data.current_provider);
+        }
       }
     } catch (e) {
       console.error('Failed to fetch model status', e);
@@ -268,13 +323,13 @@ export default function App() {
               {isModelDropdownOpen && (
                 <div className="model-dropdown-menu">
                   <div className="model-dropdown-list">
-                    {QUICK_MODELS.map((m) => {
+                    {getDropdownModels().map((m) => {
                       const isSelected =
                         currentModel === m.id ||
                         (currentProvider === m.provider && currentModel === m.name);
                       return (
                         <div
-                          key={m.id}
+                          key={`${m.provider}-${m.id}`}
                           className={`model-dropdown-item ${isSelected ? 'selected' : ''}`}
                           onClick={() => {
                             setCurrentModel(m.id);
@@ -571,7 +626,10 @@ export default function App() {
       {/* Settings & Configuration Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={() => {
+          setIsSettingsOpen(false);
+          fetchModelStatus();
+        }}
         modelStatus={modelStatus}
         currentProvider={currentProvider}
         onChangeProvider={setCurrentProvider}
@@ -581,6 +639,7 @@ export default function App() {
         onSaveConfig={(cfg) => {
           if (cfg.provider) setCurrentProvider(cfg.provider);
           if (cfg.model) setCurrentModel(cfg.model);
+          fetchModelStatus();
         }}
       />
     </div>

@@ -1225,21 +1225,25 @@ body {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 10px;
 }
 
-/* iOS/Pill Toggle Switch */
+/* iOS/Pill Toggle Switch (Cleanly Inset & Bounded) */
 .pill-switch {
   position: relative;
   display: inline-block;
-  width: 44px;
-  height: 24px;
+  vertical-align: middle;
+  width: 40px;
+  height: 22px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .pill-switch input {
   opacity: 0;
   width: 0;
   height: 0;
+  position: absolute;
 }
 
 .pill-slider {
@@ -1249,23 +1253,26 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #2b2e36;
+  background-color: #27272a;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  border-radius: 24px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 9999px;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .pill-slider:before {
   position: absolute;
   content: "";
-  height: 18px;
-  width: 18px;
+  height: 16px;
+  width: 16px;
   left: 2px;
-  bottom: 2px;
-  background-color: #cbd5e1;
-  transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  top: 2px;
+  background-color: #a1a1aa;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
 }
 
 .pill-switch input:checked + .pill-slider {
@@ -1274,8 +1281,36 @@ body {
 }
 
 .pill-switch input:checked + .pill-slider:before {
-  transform: translateX(20px);
+  transform: translateX(18px);
   background-color: #ffffff;
+}
+
+.pill-switch.disabled,
+.pill-switch input:disabled + .pill-slider {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.models-table-row.row-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.models-table-row.row-disabled:hover {
+  background: transparent;
+}
+
+.model-key-warning {
+  font-size: 0.68rem;
+  color: #f59e0b;
+  margin-left: 8px;
+  font-family: sans-serif;
+  font-weight: 500;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 /* ============================================================
@@ -1425,4 +1460,129 @@ body {
 
 .local-rescan-btn:hover {
   text-decoration: underline;
+}
+
+/* ============================================================
+   Add Model Bar (1:1 Reference Match: [Provider Name v] [Model Name] [Add] x)
+   ============================================================ */
+.add-model-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.add-model-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.add-model-select {
+  appearance: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 6px 28px 6px 12px;
+  color: #d1d5db;
+  font-size: 0.82rem;
+  height: 32px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.add-model-select:focus {
+  border-color: #0055d4;
+}
+
+.add-model-select option {
+  background: #14171f;
+  color: #f1f5f9;
+}
+
+.add-model-select-arrow {
+  position: absolute;
+  right: 9px;
+  pointer-events: none;
+  color: #94a3b8;
+}
+
+.add-model-input {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 6px 12px;
+  color: #f1f5f9;
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  height: 32px;
+  width: 210px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.add-model-input::placeholder {
+  color: #64748b;
+}
+
+.add-model-input:focus {
+  border-color: #0055d4;
+}
+
+.add-model-submit-btn {
+  background: #1d4ed8;
+  border: none;
+  border-radius: 6px;
+  padding: 0 16px;
+  height: 32px;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.add-model-submit-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.add-model-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.add-model-cancel-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.add-model-cancel-btn:hover {
+  color: #f1f5f9;
+}
+
+.custom-model-delete-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  margin-right: 6px;
+  transition: all 0.15s ease;
+}
+
+.custom-model-delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
 }
