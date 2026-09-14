@@ -152,3 +152,34 @@ async def test_chat_meta_intent(client):
     assert len(data["citations"]) == 0
     assert "Lenny Growth Assistant" in data["message"]
 
+@pytest.mark.asyncio
+async def test_message_feedback_lifecycle(client):
+    # 1. Generate chat message
+    chat_res = await client.post("/api/chat", json={
+        "message": "What is Founder Mode?",
+        "provider": "fallback"
+    })
+    assert chat_res.status_code == 200
+    chat_data = chat_res.json()
+    message_id = chat_data["message_id"]
+    assert message_id is not None
+
+    # 2. Record 'like' feedback
+    feedback_res = await client.patch(f"/api/messages/{message_id}/feedback", json={"feedback": "like"})
+    assert feedback_res.status_code == 200
+    assert feedback_res.json()["feedback"] == "like"
+
+    # 3. Verify in session detail
+    session_id = chat_data["session_id"]
+    session_res = await client.get(f"/api/sessions/{session_id}")
+    assert session_res.status_code == 200
+    messages = session_res.json()["messages"]
+    assistant_msg = next((m for m in messages if m["id"] == message_id), None)
+    assert assistant_msg is not None
+    assert assistant_msg["feedback"] == "like"
+
+    # 4. Toggle to 'unlike'
+    feedback_res2 = await client.patch(f"/api/messages/{message_id}/feedback", json={"feedback": "unlike"})
+    assert feedback_res2.status_code == 200
+    assert feedback_res2.json()["feedback"] == "unlike"
+

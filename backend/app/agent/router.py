@@ -335,6 +335,7 @@ class AgentRouter:
 
         return ChatResponse(
             session_id=session_id,
+            message_id=assistant_msg.id,
             message=assistant_content,
             citations=citations,
             artifact=artifact_response,

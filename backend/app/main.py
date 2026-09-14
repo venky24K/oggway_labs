@@ -23,7 +23,8 @@ from backend.app.schemas import (
     ChatRequest,
     ChatResponse,
     ModelStatusResponse,
-    ArtifactResponse
+    ArtifactResponse,
+    FeedbackRequest
 )
 from backend.app.rag.retriever import get_retriever
 from backend.app.agent.router import agent_router
@@ -388,6 +389,21 @@ async def process_chat(req: ChatRequest, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while generating grounded response: {str(e)}"
         )
+
+@app.patch(f"{settings.API_PREFIX}/messages/{{message_id}}/feedback", tags=["Chat"])
+async def record_message_feedback(
+    message_id: str,
+    payload: FeedbackRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Records like / unlike feedback on an assistant message."""
+    result = await db.execute(select(MessageModel).where(MessageModel.id == message_id))
+    msg = result.scalars().first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    msg.feedback = payload.feedback
+    await db.commit()
+    return {"status": "success", "message_id": message_id, "feedback": payload.feedback}
 
 # ----------------- Artifact Endpoints ----------------- #
 

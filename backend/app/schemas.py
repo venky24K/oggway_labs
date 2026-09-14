@@ -41,8 +41,12 @@ class MessageResponse(MessageBase):
     session_id: str
     citations_json: Optional[List[Dict[str, Any]]] = []
     model_used: str
+    feedback: Optional[str] = None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+class FeedbackRequest(BaseModel):
+    feedback: Optional[str] = None  # "like", "unlike", or None
 
 class SessionCreate(BaseModel):
     title: Optional[str] = "New Growth Conversation"
@@ -68,6 +72,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     session_id: str
+    message_id: Optional[str] = None
     message: str
     citations: List[CitationItem] = []
     artifact: Optional[ArtifactResponse] = None

@@ -2184,3 +2184,41 @@ body {
   }
 }
 
+/* ===== Message Timestamps & Feedback Controls ===== */
+.message-time-assistant {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  align-self: center;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+  padding-left: 8px;
+}
+
+.message-time-user {
+  font-size: 0.70rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: right;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.feedback-btn {
+  transition: all var(--transition-fast);
+}
+
+.feedback-btn.liked {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10b981 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  font-weight: 600;
+}
+
+.feedback-btn.unliked {
+  background: rgba(244, 63, 94, 0.15) !important;
+  color: #f43f5e !important;
+  border-color: rgba(244, 63, 94, 0.35) !important;
+  font-weight: 600;
+}
+
+

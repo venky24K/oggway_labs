@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
 from backend.app.config import settings
@@ -127,6 +128,17 @@ async def init_db():
             using_sqlite = True
             engine = sqlite_engine
             AsyncSessionLocal = SqliteSessionLocal
+
+    # 3. Ensure feedback column exists on messages table if it was created in an older schema
+    active_engines = [sqlite_engine]
+    if not using_sqlite and engine:
+        active_engines.append(engine)
+    for eng in active_engines:
+        try:
+            async with eng.begin() as conn:
+                await conn.execute(text("ALTER TABLE messages ADD COLUMN feedback VARCHAR(20)"))
+        except Exception:
+            pass
 
 async def reinit_database(new_url: str = None) -> bool:
     """Dynamically reconfigures and tests database connection when settings change."""

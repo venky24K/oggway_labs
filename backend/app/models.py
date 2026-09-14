@@ -37,6 +37,7 @@ class MessageModel(Base):
     content = Column(Text, nullable=False)
     citations_json = Column(JSON, default=list)
     model_used = Column(String(100), default="ollama")
+    feedback = Column(String(20), nullable=True)  # "like", "unlike", or None
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     session = relationship("SessionModel", back_populates="messages")

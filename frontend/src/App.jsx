@@ -11,7 +11,9 @@ import {
   Copy,
   Check,
   Layers,
-  ChevronDown
+  ChevronDown,
+  ThumbsUp,
+  ThumbsDown
 } from 'lucide-react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -252,7 +254,8 @@ export default function App() {
     if (!query || loading) return;
 
     // Optimistically show user message
-    const userMsg = { role: 'user', content: query };
+    const now = new Date().toISOString();
+    const userMsg = { role: 'user', content: query, created_at: now };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setLoading(true);
@@ -283,11 +286,14 @@ export default function App() {
       }
 
       const assistantMsg = {
+        id: data.message_id,
         role: 'assistant',
         content: data.message,
         citations_json: data.citations || [],
         model_used: data.model_used,
-        artifact: data.artifact
+        artifact: data.artifact,
+        feedback: null,
+        created_at: new Date().toISOString()
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
@@ -304,7 +310,8 @@ export default function App() {
         {
           role: 'assistant',
           content: `⚠️ Error connecting to Lenny Growth Assistant: ${e.message}. Please check that the server is running or switch to the Grounded Fallback Engine in Settings.`,
-          citations_json: []
+          citations_json: [],
+          created_at: new Date().toISOString()
         }
       ]);
     } finally {
@@ -316,6 +323,39 @@ export default function App() {
     navigator.clipboard.writeText(text);
     setCopiedIndex(idx);
     setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  const handleFeedback = async (idx, messageId, type) => {
+    const currentFeedback = messages[idx]?.feedback;
+    const newFeedback = currentFeedback === type ? null : type;
+
+    setMessages((prev) =>
+      prev.map((m, i) => (i === idx ? { ...m, feedback: newFeedback } : m))
+    );
+
+    if (messageId) {
+      try {
+        await fetch(`/api/messages/${messageId}/feedback`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ feedback: newFeedback })
+        });
+      } catch (e) {
+        console.error('Failed to record feedback:', e);
+      }
+    }
+  };
+
+  const formatMessageTime = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      return isNaN(d.getTime())
+        ? ''
+        : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } catch {
+      return '';
+    }
   };
 
   return (
@@ -592,8 +632,10 @@ export default function App() {
                           )}
 
                           <button
+                            type="button"
                             className="btn-action-chip"
                             onClick={() => handleCopyMessage(idx, m.content)}
+                            title="Copy response"
                           >
                             {copiedIndex === idx ? (
                               <Check size={12} color="var(--accent-emerald)" />
@@ -602,6 +644,40 @@ export default function App() {
                             )}
                             <span>{copiedIndex === idx ? 'Copied' : 'Copy'}</span>
                           </button>
+
+                          {/* Like / Unlike feedback buttons */}
+                          <button
+                            type="button"
+                            className={`btn-action-chip feedback-btn ${m.feedback === 'like' ? 'liked' : ''}`}
+                            onClick={() => handleFeedback(idx, m.id, 'like')}
+                            title="Helpful response"
+                          >
+                            <ThumbsUp size={12} />
+                            {m.feedback === 'like' && <span>Helpful</span>}
+                          </button>
+
+                          <button
+                            type="button"
+                            className={`btn-action-chip feedback-btn ${m.feedback === 'unlike' ? 'unliked' : ''}`}
+                            onClick={() => handleFeedback(idx, m.id, 'unlike')}
+                            title="Needs improvement"
+                          >
+                            <ThumbsDown size={12} />
+                            {m.feedback === 'unlike' && <span>Needs Work</span>}
+                          </button>
+
+                          {m.created_at && (
+                            <span className="message-time-assistant">
+                              {formatMessageTime(m.created_at)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* User message timestamp */}
+                      {m.role === 'user' && m.created_at && (
+                        <div className="message-time-user">
+                          {formatMessageTime(m.created_at)}
                         </div>
                       )}
                     </div>
