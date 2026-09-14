@@ -73,11 +73,20 @@ class OllamaProvider(BaseLLMProvider):
             }
         }
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            response = await client.post(f"{self.base_url}/api/chat", json=payload)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("message", {}).get("content", "")
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                response = await client.post(f"{self.base_url}/api/chat", json=payload)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("message", {}).get("content", "")
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"Ollama error {e.response.status_code} (model '{self.model}' might need 'ollama pull {self.model}'). Falling back to GroundedFallbackProvider.")
+            fallback = GroundedFallbackProvider()
+            return await fallback.generate_response(system_prompt, messages, context_str, temperature)
+        except Exception as e:
+            logger.warning(f"Ollama connection error: {e}. Falling back to GroundedFallbackProvider.")
+            fallback = GroundedFallbackProvider()
+            return await fallback.generate_response(system_prompt, messages, context_str, temperature)
 
 class AnthropicProvider(BaseLLMProvider):
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):

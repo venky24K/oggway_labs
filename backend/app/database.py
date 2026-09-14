@@ -1,8 +1,17 @@
 import os
+import sys
 import logging
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
 from backend.app.config import settings
+
+# On Windows, psycopg async requires WindowsSelectorEventLoopPolicy
+if sys.platform == "win32":
+    import asyncio
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    except Exception:
+        pass
 
 logger = logging.getLogger("lenny_assistant.database")
 
@@ -17,11 +26,13 @@ if not db_url or "postgres" not in db_url:
     db_url = settings.SQLITE_FALLBACK_URL
     using_sqlite = True
 else:
-    # Normalize postgresql:// to postgresql+asyncpg:// if needed
+    # Normalize postgresql:// to postgresql+psycopg_async://
     if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
-    elif db_url.startswith("postgresql://") and not db_url.startswith("postgresql+asyncpg://"):
-        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        db_url = db_url.replace("postgres://", "postgresql+psycopg_async://", 1)
+    elif db_url.startswith("postgresql://") and not (
+        "postgresql+asyncpg://" in db_url or "postgresql+psycopg_async://" in db_url
+    ):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg_async://", 1)
 
 try:
     if using_sqlite:
