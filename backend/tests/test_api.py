@@ -67,6 +67,36 @@ async def test_sessions_lifecycle(client):
     assert get_after_del.status_code == 404
 
 @pytest.mark.asyncio
+async def test_delete_session_with_messages_and_artifacts(client):
+    # 1. Chat to create a session with messages and artifacts
+    req_payload = {
+        "message": "Generate an interactive growth calculator",
+        "provider": "fallback",
+        "generate_artifact": True
+    }
+    chat_res = await client.post("/api/chat", json=req_payload)
+    assert chat_res.status_code == 200
+    data = chat_res.json()
+    session_id = data["session_id"]
+    assert session_id is not None
+    assert data["artifact"] is not None
+
+    # 2. Verify session has messages and artifacts
+    session_res = await client.get(f"/api/sessions/{session_id}")
+    assert session_res.status_code == 200
+    session_data = session_res.json()
+    assert len(session_data["messages"]) > 0
+    assert len(session_data["artifacts"]) > 0
+
+    # 3. Delete populated session - should succeed cleanly without lazy loading / foreign key error
+    del_res = await client.delete(f"/api/sessions/{session_id}")
+    assert del_res.status_code == 200
+
+    # 4. Verify 404 after deletion
+    verify_res = await client.get(f"/api/sessions/{session_id}")
+    assert verify_res.status_code == 404
+
+@pytest.mark.asyncio
 async def test_chat_grounded_response(client):
     req_payload = {
         "message": "What does Elena Verna say about B2B Product-Led Growth?",

@@ -1,5 +1,5 @@
-import React from 'react';
-import { Plus, MessageSquare, Trash2, Radio, Sparkles, BookOpen, BarChart2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, MessageSquare, Trash2, Sparkles, BookOpen, BarChart2, X, Check } from 'lucide-react';
 import { PLAYBOOK_SHORTCUTS } from '../prompts';
 
 export default function Sidebar({
@@ -9,12 +9,44 @@ export default function Sidebar({
   onNewChat,
   onDeleteSession,
   onSelectQuickPrompt,
-  isOpen
+  isOpen,
+  onClose
 }) {
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
   const getIcon = (iconName, color) => {
     if (iconName === 'BookOpen') return <BookOpen size={12} color={color} />;
     if (iconName === 'BarChart2') return <BarChart2 size={12} color={color} />;
     return <Sparkles size={12} color={color} />;
+  };
+
+  const handleDeleteClick = (e, sessionId) => {
+    e.stopPropagation();
+    if (confirmDeleteId === sessionId) {
+      onDeleteSession(sessionId);
+      setConfirmDeleteId(null);
+    } else {
+      setConfirmDeleteId(sessionId);
+      // Auto-reset confirmation after 3 seconds
+      setTimeout(() => {
+        setConfirmDeleteId((prev) => (prev === sessionId ? null : prev));
+      }, 3000);
+    }
+  };
+
+  const handleSessionClick = (sessionId) => {
+    onSelectSession(sessionId);
+    if (onClose) onClose();
+  };
+
+  const handlePromptClick = (query, options) => {
+    onSelectQuickPrompt(query, options);
+    if (onClose) onClose();
+  };
+
+  const handleNewChatClick = () => {
+    onNewChat();
+    if (onClose) onClose();
   };
 
   return (
@@ -31,10 +63,25 @@ export default function Sidebar({
           </div>
         </div>
 
+        {/* Mobile close button */}
+        {isOpen && (
+          <button
+            type="button"
+            className="btn-icon mobile-sidebar-close"
+            onClick={onClose}
+            title="Close sidebar"
+          >
+            <X size={16} />
+          </button>
+        )}
+      </div>
+
+      <div style={{ padding: '0 16px 8px 16px' }}>
         <button
-          className="btn-primary"
-          style={{ width: '100%', marginTop: '4px' }}
-          onClick={onNewChat}
+          type="button"
+          className="btn-new-chat"
+          style={{ width: '100%', margin: '8px 0 0 0' }}
+          onClick={handleNewChatClick}
         >
           <Plus size={16} />
           <span>New Chat</span>
@@ -49,28 +96,35 @@ export default function Sidebar({
             No conversations yet. Start a new session!
           </div>
         ) : (
-          sessions.map((s) => (
-            <div
-              key={s.id}
-              className={`session-item ${s.id === currentSessionId ? 'active' : ''}`}
-              onClick={() => onSelectSession(s.id)}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                <MessageSquare size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
-                <span className="session-title">{s.title || 'Untitled Chat'}</span>
-              </div>
-              <button
-                className="session-delete-btn"
-                title="Delete session"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDeleteSession(s.id);
-                }}
+          sessions.map((s) => {
+            const isConfirming = confirmDeleteId === s.id;
+            return (
+              <div
+                key={s.id}
+                className={`session-item ${s.id === currentSessionId ? 'active' : ''}`}
+                onClick={() => handleSessionClick(s.id)}
               >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', flex: 1 }}>
+                  <MessageSquare size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
+                  <span className="session-title">{s.title || 'Untitled Chat'}</span>
+                </div>
+                <button
+                  type="button"
+                  className={`btn-delete-session session-delete-btn ${isConfirming ? 'confirming' : ''}`}
+                  title={isConfirming ? "Click again to confirm delete" : "Delete session"}
+                  onClick={(e) => handleDeleteClick(e, s.id)}
+                >
+                  {isConfirming ? (
+                    <span className="delete-confirm-label">
+                      <Check size={12} style={{ pointerEvents: 'none' }} /> Delete?
+                    </span>
+                  ) : (
+                    <Trash2 size={13} style={{ pointerEvents: 'none' }} />
+                  )}
+                </button>
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -79,10 +133,11 @@ export default function Sidebar({
       <div style={{ padding: '4px 12px 16px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {PLAYBOOK_SHORTCUTS.map((item) => (
           <button
+            type="button"
             key={item.id}
             className="btn-action-chip"
             style={{ width: '100%', justifyContent: 'flex-start' }}
-            onClick={() => onSelectQuickPrompt(item.query, item.options)}
+            onClick={() => handlePromptClick(item.query, item.options)}
           >
             {getIcon(item.icon, item.color)}
             <span>{item.title}</span>

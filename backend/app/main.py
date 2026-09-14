@@ -9,6 +9,7 @@ from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
@@ -353,14 +354,18 @@ async def get_session(session_id: str, db: AsyncSession = Depends(get_db)):
 
 @app.delete(f"{settings.API_PREFIX}/sessions/{{session_id}}", tags=["Sessions"])
 async def delete_session(session_id: str, db: AsyncSession = Depends(get_db)):
-    """Deletes a chat session and associated messages/artifacts."""
+    """Deletes a chat session and associated messages/artifacts atomically."""
     result = await db.execute(select(SessionModel).where(SessionModel.id == session_id))
     session_obj = result.scalars().first()
     if not session_obj:
         raise HTTPException(status_code=404, detail="Session not found")
-    await db.delete(session_obj)
+    
+    # Explicitly remove child artifacts and messages to prevent lazy loading issues or foreign key constraints
+    await db.execute(delete(ArtifactModel).where(ArtifactModel.session_id == session_id))
+    await db.execute(delete(MessageModel).where(MessageModel.session_id == session_id))
+    await db.execute(delete(SessionModel).where(SessionModel.id == session_id))
     await db.commit()
-    return {"message": "Session deleted successfully"}
+    return {"message": "Session deleted successfully", "session_id": session_id}
 
 # ----------------- Conversational Chat Endpoint ----------------- #
 

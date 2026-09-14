@@ -200,8 +200,11 @@ export default function App() {
         const data = await res.json();
         setMessages(data.messages || []);
         if (data.artifacts && data.artifacts.length > 0) {
-          setActiveArtifact(data.artifacts[data.artifacts.length - 1]);
+          const latest = data.artifacts[data.artifacts.length - 1];
+          lastArtifactRef.current = latest;
+          setActiveArtifact(latest);
         } else {
+          lastArtifactRef.current = null;
           setActiveArtifact(null);
         }
       }
@@ -214,11 +217,15 @@ export default function App() {
     setCurrentSessionId(null);
     setMessages([]);
     setActiveArtifact(null);
+    lastArtifactRef.current = null;
   };
 
   const handleDeleteSession = async (sessionId) => {
     try {
-      await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        throw new Error(`Failed to delete session: ${res.status}`);
+      }
       setSessions((prev) => prev.filter((s) => s.id !== sessionId));
       if (currentSessionId === sessionId) {
         handleNewChat();
@@ -322,7 +329,17 @@ export default function App() {
         onDeleteSession={handleDeleteSession}
         onSelectQuickPrompt={(prompt, opts) => handleSendMessage({ text: prompt, ...(opts || {}) })}
         isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
+
+      {/* Mobile Sidebar Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+          title="Close navigation"
+        />
+      )}
 
       {/* Main Workspace */}
       <div className="main-workspace">
@@ -330,9 +347,10 @@ export default function App() {
         <header className="app-header">
           <div className="header-left">
             <button
-              className="btn-icon"
-              style={{ display: 'md-none' }}
+              type="button"
+              className="btn-icon mobile-menu-toggle"
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              title="Toggle Menu"
             >
               <Menu size={18} />
             </button>
@@ -411,13 +429,15 @@ export default function App() {
             </div>
 
             {/* Artifact toggle button if artifact exists */}
-            {activeArtifact && (
+            {(activeArtifact || lastArtifactRef.current) && (
               <button
-                className="btn-action-chip accent"
+                type="button"
+                className={`btn-action-chip accent ${activeArtifact ? 'active-panel' : ''}`}
                 onClick={() => setActiveArtifact(activeArtifact ? null : lastArtifactRef.current)}
+                title={activeArtifact ? "Close artifact sidepanel" : "Open artifact sidepanel"}
               >
                 <Layers size={13} />
-                <span>Artifact Viewer</span>
+                <span>{activeArtifact ? "Close Artifact" : "Open Artifact"}</span>
               </button>
             )}
 
@@ -488,6 +508,38 @@ export default function App() {
                           __html: DOMPurify.sanitize(marked.parse(m.content || ''))
                         }}
                       />
+
+                      {/* Interactive Artifact Card attached to message */}
+                      {m.artifact && (
+                        <div
+                          className="message-artifact-card"
+                          onClick={() => {
+                            lastArtifactRef.current = m.artifact;
+                            setActiveArtifact(m.artifact);
+                          }}
+                          role="button"
+                          tabIndex={0}
+                          title="Click to open artifact in sidepanel"
+                        >
+                          <div className="message-artifact-card-icon">
+                            {m.artifact.artifact_type === 'html' ? (
+                              <Code2 size={16} color="var(--accent-emerald)" />
+                            ) : (
+                              <BookOpen size={16} color="var(--accent-amber)" />
+                            )}
+                          </div>
+                          <div className="message-artifact-card-info">
+                            <div className="message-artifact-card-tag">
+                              {m.artifact.artifact_type === 'html' ? 'Interactive Web Widget' : 'Growth Framework Essay'}
+                            </div>
+                            <div className="message-artifact-card-title">{m.artifact.title || 'Untitled Artifact'}</div>
+                          </div>
+                          <div className="message-artifact-card-cta">
+                            <Layers size={13} />
+                            <span>Open in Panel</span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Render Citation Badges with YouTube Links */}
                       {m.citations_json && m.citations_json.length > 0 && (
