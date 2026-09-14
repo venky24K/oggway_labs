@@ -22,10 +22,9 @@ import {
 
 const DEFAULT_MODELS = [
   // Gemini (Google)
-  { id: 'gemini-3.6-flash', name: 'gemini-3.6-flash', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
-  { id: 'gemini-3.1-pro-preview', name: 'gemini-3.1-pro-preview', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
-  { id: 'gemini-3.1-pro', name: 'gemini-3.1-pro', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
-  { id: 'gemini-3.1-flash', name: 'gemini-3.1-flash', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
+  { id: 'gemini-2.0-flash', name: 'gemini-2.0-flash', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
+  { id: 'gemini-1.5-flash', name: 'gemini-1.5-flash', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
+  { id: 'gemini-1.5-pro', name: 'gemini-1.5-pro', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
 
   // OpenAI
   { id: 'gpt-4o', name: 'gpt-4o', provider: 'openai', providerLabel: 'OpenAI', category: 'Cloud' },
@@ -58,6 +57,8 @@ export default function SettingsModal({
   const [activeModelId, setActiveModelId] = useState(currentModel || 'fallback-rag');
   const [searchFilter, setSearchFilter] = useState('');
   const [modelToDelete, setModelToDelete] = useState(null);
+  const [serverConfig, setServerConfig] = useState(null);
+  const [addModelError, setAddModelError] = useState('');
 
   // Custom added models (persisted in localStorage)
   const [customModels, setCustomModels] = useState(() => {
@@ -89,13 +90,39 @@ export default function SettingsModal({
   const [anthropicModel, setAnthropicModel] = useState('claude-3-5-sonnet-20241022');
 
   const [geminiKey, setGeminiKey] = useState('');
-  const [geminiModel, setGeminiModel] = useState('gemini-3.1-pro');
+  const [geminiModel, setGeminiModel] = useState('gemini-1.5-flash');
 
   // Database
   const [databaseUrl, setDatabaseUrl] = useState(
     'postgresql://postgres.cbanzhreccncemwwdpqh:Venky2427..@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres'
   );
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Fetch settings from server on modal open
+  const fetchServerSettings = async () => {
+    try {
+      const res = await fetch('/api/settings');
+      if (res.ok) {
+        const data = await res.json();
+        setServerConfig(data);
+        if (data.ollama_url) setOllamaUrl(data.ollama_url);
+        if (data.database_url) setDatabaseUrl(data.database_url);
+        if (data.openai_base_url) setOpenaiBaseUrl(data.openai_base_url);
+        if (data.ollama_model) setOllamaModel(data.ollama_model);
+        if (data.openai_model) setOpenaiModel(data.openai_model);
+        if (data.anthropic_model) setAnthropicModel(data.anthropic_model);
+        if (data.gemini_model) setGeminiModel(data.gemini_model);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch /api/settings:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchServerSettings();
+    }
+  }, [isOpen]);
 
   // Synchronize initialTab when opening
   useEffect(() => {
@@ -122,13 +149,25 @@ export default function SettingsModal({
   const isProviderConfigured = (p) => {
     if (p === 'fallback' || p === 'ollama') return true;
     if (p === 'gemini') {
-      return Boolean((geminiKey && geminiKey.trim().length > 5) || modelStatus?.available_providers?.includes('gemini'));
+      return Boolean(
+        (geminiKey && geminiKey.trim().length > 5) ||
+        serverConfig?.has_gemini_key ||
+        modelStatus?.available_providers?.includes('gemini')
+      );
     }
     if (p === 'openai') {
-      return Boolean((openaiKey && openaiKey.trim().length > 5) || modelStatus?.available_providers?.includes('openai'));
+      return Boolean(
+        (openaiKey && openaiKey.trim().length > 5) ||
+        serverConfig?.has_openai_key ||
+        modelStatus?.available_providers?.includes('openai')
+      );
     }
     if (p === 'anthropic') {
-      return Boolean((anthropicKey && anthropicKey.trim().length > 5) || modelStatus?.available_providers?.includes('anthropic'));
+      return Boolean(
+        (anthropicKey && anthropicKey.trim().length > 5) ||
+        serverConfig?.has_anthropic_key ||
+        modelStatus?.available_providers?.includes('anthropic')
+      );
     }
     return false;
   };
@@ -213,12 +252,37 @@ export default function SettingsModal({
 
     if (onChangeProvider) onChangeProvider(m.provider);
     if (onChangeModel) onChangeModel(m.id);
+
+    // Fire background sync to backend so immediate selection is persisted
+    fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider: m.provider,
+        ...(m.provider === 'ollama' ? { ollama_model: m.id } : {}),
+        ...(m.provider === 'openai' ? { openai_model: m.id } : {}),
+        ...(m.provider === 'anthropic' ? { anthropic_model: m.id } : {}),
+        ...(m.provider === 'gemini' ? { gemini_model: m.id } : {})
+      })
+    }).catch((e) => console.warn('Background model sync error:', e));
   };
 
   // Add custom model from the Add Model bar
   const handleAddModel = () => {
     if (!newModelName.trim() || !newModelProvider) return;
     const cleanName = newModelName.trim();
+
+    // Prevent duplicate model addition
+    const exists = allModels.some(
+      (m) => m.name.toLowerCase() === cleanName.toLowerCase() && m.provider === newModelProvider
+    );
+    if (exists) {
+      setAddModelError(`Model "${cleanName}" already exists for ${newModelProvider}.`);
+      setTimeout(() => setAddModelError(''), 3500);
+      return;
+    }
+    setAddModelError('');
+
     const providerLabels = {
       gemini: 'Gemini',
       ollama: 'Ollama',
@@ -518,6 +582,7 @@ export default function SettingsModal({
                       onClick={() => {
                         setNewModelName('');
                         setNewModelProvider('');
+                        setAddModelError('');
                       }}
                       title="Clear"
                     >
@@ -525,6 +590,13 @@ export default function SettingsModal({
                     </button>
                   )}
                 </div>
+
+                {addModelError && (
+                  <div className="add-model-error-msg">
+                    <AlertCircle size={13} />
+                    <span>{addModelError}</span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -621,6 +693,11 @@ export default function SettingsModal({
                               setActiveModelId(modelName);
                               if (onChangeProvider) onChangeProvider('ollama');
                               if (onChangeModel) onChangeModel(modelName);
+                              fetch('/api/settings', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ provider: 'ollama', ollama_model: modelName })
+                              }).catch((e) => console.warn('Background ollama sync error:', e));
                             }}
                             title={`Click to select ${modelName}`}
                           >
@@ -661,13 +738,20 @@ export default function SettingsModal({
 
                 {/* Google Gemini */}
                 <div className="local-endpoint-section">
-                  <label className="local-endpoint-label">Google Gemini</label>
+                  <div className="local-endpoint-label-row">
+                    <label className="local-endpoint-label">Google Gemini</label>
+                    {serverConfig?.has_gemini_key && (
+                      <span className="key-active-badge">
+                        <Check size={11} /> Configured in .env {serverConfig.gemini_key_preview && `(${serverConfig.gemini_key_preview})`}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="password"
                     className="local-endpoint-input"
                     value={geminiKey}
                     onChange={(e) => setGeminiKey(e.target.value)}
-                    placeholder="AIzaSy..."
+                    placeholder={serverConfig?.has_gemini_key ? "•••••••••••••••• (Leave blank to keep configured key)" : "AIzaSy..."}
                   />
                   <div className="local-endpoint-footer">
                     Get your API key{' '}
@@ -685,13 +769,20 @@ export default function SettingsModal({
 
                 {/* OpenAI */}
                 <div className="local-endpoint-section">
-                  <label className="local-endpoint-label">OpenAI</label>
+                  <div className="local-endpoint-label-row">
+                    <label className="local-endpoint-label">OpenAI</label>
+                    {serverConfig?.has_openai_key && (
+                      <span className="key-active-badge">
+                        <Check size={11} /> Configured in .env {serverConfig.openai_key_preview && `(${serverConfig.openai_key_preview})`}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="password"
                     className="local-endpoint-input"
                     value={openaiKey}
                     onChange={(e) => setOpenaiKey(e.target.value)}
-                    placeholder="sk-proj-..."
+                    placeholder={serverConfig?.has_openai_key ? "•••••••••••••••• (Leave blank to keep configured key)" : "sk-proj-..."}
                   />
                   <div className="local-endpoint-footer">
                     Get your API key{' '}
@@ -723,13 +814,20 @@ export default function SettingsModal({
 
                 {/* Anthropic Claude */}
                 <div className="local-endpoint-section">
-                  <label className="local-endpoint-label">Anthropic Claude</label>
+                  <div className="local-endpoint-label-row">
+                    <label className="local-endpoint-label">Anthropic Claude</label>
+                    {serverConfig?.has_anthropic_key && (
+                      <span className="key-active-badge">
+                        <Check size={11} /> Configured in .env {serverConfig.anthropic_key_preview && `(${serverConfig.anthropic_key_preview})`}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="password"
                     className="local-endpoint-input"
                     value={anthropicKey}
                     onChange={(e) => setAnthropicKey(e.target.value)}
-                    placeholder="sk-ant-api..."
+                    placeholder={serverConfig?.has_anthropic_key ? "•••••••••••••••• (Leave blank to keep configured key)" : "sk-ant-api..."}
                   />
                   <div className="local-endpoint-footer">
                     Get your API key{' '}
@@ -758,8 +856,14 @@ export default function SettingsModal({
                 <div className="local-endpoint-section">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                     <div className="pulse-dot" />
-                    <span style={{ fontWeight: 600, color: 'var(--accent-emerald)', fontSize: '0.86rem' }}>
-                      Supabase PostgreSQL Connected & Active
+                    <span style={{ 
+                      fontWeight: 600, 
+                      color: serverConfig?.database_type === 'postgresql' ? 'var(--accent-emerald)' : 'var(--accent-primary)', 
+                      fontSize: '0.86rem' 
+                    }}>
+                      {serverConfig?.database_type === 'postgresql'
+                        ? 'Supabase PostgreSQL Connected & Active'
+                        : 'Local SQLite Database Active (Supabase fallback ready)'}
                     </span>
                   </div>
 

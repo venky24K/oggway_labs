@@ -1435,6 +1435,27 @@ body {
   margin-top: 8px;
 }
 
+.local-endpoint-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.key-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--accent-emerald);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
 .local-endpoint-label {
   font-size: 0.92rem;
   font-weight: 600;
@@ -1732,6 +1753,20 @@ body {
 
 .add-model-cancel-btn:hover {
   color: var(--text-primary);
+}
+
+.add-model-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin-top: 6px;
+  animation: fadeIn 0.2s ease;
 }
 
 .custom-model-delete-btn {

@@ -127,3 +127,53 @@ async def init_db():
             using_sqlite = True
             engine = sqlite_engine
             AsyncSessionLocal = SqliteSessionLocal
+
+async def reinit_database(new_url: str = None) -> bool:
+    """Dynamically reconfigures and tests database connection when settings change."""
+    global db_url, engine, AsyncSessionLocal, using_sqlite
+    from backend.app.models import SessionModel, MessageModel, ArtifactModel
+
+    target_url = new_url or settings.DATABASE_URL
+    if not target_url or "postgres" not in target_url:
+        logger.info("Switching to SQLite persistence.")
+        db_url = settings.SQLITE_FALLBACK_URL
+        using_sqlite = True
+        engine = sqlite_engine
+        AsyncSessionLocal = SqliteSessionLocal
+        return True
+
+    # Normalize postgresql:// to postgresql+psycopg_async://
+    if target_url.startswith("postgres://"):
+        target_url = target_url.replace("postgres://", "postgresql+psycopg_async://", 1)
+    elif target_url.startswith("postgresql://") and not (
+        "postgresql+asyncpg://" in target_url or "postgresql+psycopg_async://" in target_url
+    ):
+        target_url = target_url.replace("postgresql://", "postgresql+psycopg_async://", 1)
+
+    try:
+        new_engine = create_async_engine(
+            target_url,
+            pool_pre_ping=True,
+            pool_size=10,
+            max_overflow=20,
+            echo=False
+        )
+        async with new_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+        engine = new_engine
+        AsyncSessionLocal = async_sessionmaker(
+            bind=engine,
+            class_=AsyncSession,
+            expire_on_commit=False
+        )
+        db_url = target_url
+        using_sqlite = False
+        logger.info("Successfully reconnected to updated PostgreSQL database.")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to connect to database {target_url}: {e}. Retaining SQLite fallback.")
+        using_sqlite = True
+        engine = sqlite_engine
+        AsyncSessionLocal = SqliteSessionLocal
+        return False

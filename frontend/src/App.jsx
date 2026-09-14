@@ -22,8 +22,9 @@ import CitationBadge from './components/CitationBadge';
 import SettingsModal from './components/SettingsModal';
 
 const QUICK_MODELS = [
+  { id: 'gemini-2.0-flash', name: 'gemini-2.0-flash', provider: 'gemini' },
+  { id: 'gemini-1.5-flash', name: 'gemini-1.5-flash', provider: 'gemini' },
   { id: 'gemini-3.1-pro', name: 'gemini-3.1-pro', provider: 'gemini' },
-  { id: 'gemini-3.6-flash', name: 'gemini-3.6-flash', provider: 'gemini' },
   { id: 'gpt-4o', name: 'gpt-4o', provider: 'openai' },
   { id: 'gpt-4o-mini', name: 'gpt-4o-mini', provider: 'openai' },
   { id: 'claude-3-5-sonnet-20241022', name: 'claude-3-5-sonnet', provider: 'anthropic' },
@@ -133,8 +134,19 @@ export default function App() {
   useEffect(() => {
     if (modelStatus) {
       const isCurrentAvailable = isProviderAvailable(currentProvider);
+
+      let isCustomOllama = false;
+      try {
+        const saved = localStorage.getItem('lenny_custom_models');
+        if (saved) {
+          const list = JSON.parse(saved);
+          isCustomOllama = list.some((cm) => cm.id === currentModel && cm.provider === 'ollama');
+        }
+      } catch {}
+
       const isCurrentOllamaValid =
         currentProvider !== 'ollama' ||
+        isCustomOllama ||
         !modelStatus.ollama_models ||
         modelStatus.ollama_models.length === 0 ||
         modelStatus.ollama_models.includes(currentModel);

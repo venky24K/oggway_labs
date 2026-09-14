@@ -13,7 +13,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from backend.app.config import settings
-from backend.app.database import get_db, init_db, using_sqlite
+from backend.app.database import get_db, init_db, using_sqlite, reinit_database
 from backend.app.models import SessionModel, MessageModel, ArtifactModel
 from backend.app.schemas import (
     SessionResponse,
@@ -104,10 +104,21 @@ async def get_models_status(endpoint: Optional[str] = None):
     if settings.GEMINI_API_KEY and len(settings.GEMINI_API_KEY.strip()) > 5:
         available.append("gemini")
 
+    active_model = "fallback-rag"
+    if settings.DEFAULT_PROVIDER == "ollama":
+        active_model = settings.OLLAMA_MODEL
+    elif settings.DEFAULT_PROVIDER == "openai":
+        active_model = settings.OPENAI_MODEL
+    elif settings.DEFAULT_PROVIDER == "anthropic":
+        active_model = settings.ANTHROPIC_MODEL
+    elif settings.DEFAULT_PROVIDER == "gemini":
+        active_model = settings.GEMINI_MODEL
+
     return ModelStatusResponse(
         ollama_available=ollama_ok,
         ollama_models=ollama_models,
         current_provider=settings.DEFAULT_PROVIDER,
+        current_model=active_model,
         available_providers=available,
         database_connected=True,
         database_type="sqlite" if using_sqlite else "postgresql",
@@ -117,6 +128,41 @@ async def get_models_status(endpoint: Optional[str] = None):
 
 from pydantic import BaseModel
 
+def mask_api_key(key: Optional[str]) -> str:
+    if not key or len(key.strip()) < 6:
+        return ""
+    clean = key.strip()
+    return f"{clean[:4]}...{clean[-4:]}"
+
+def persist_settings_to_env(updates: dict):
+    env_path = ".env"
+    if not os.path.exists(env_path):
+        return
+    try:
+        with open(env_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+
+        updated_keys = set()
+        new_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                k = stripped.split("=", 1)[0].strip()
+                if k in updates:
+                    new_lines.append(f"{k}={updates[k]}\n")
+                    updated_keys.add(k)
+                    continue
+            new_lines.append(line)
+
+        for k, v in updates.items():
+            if k not in updated_keys and v is not None:
+                new_lines.append(f"{k}={v}\n")
+
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.writelines(new_lines)
+    except Exception as e:
+        logger.warning("Could not persist to .env: %s", e)
+
 class SettingsUpdatePayload(BaseModel):
     provider: Optional[str] = None
     ollama_url: Optional[str] = None
@@ -124,37 +170,112 @@ class SettingsUpdatePayload(BaseModel):
     openai_key: Optional[str] = None
     openai_model: Optional[str] = None
     openai_base_url: Optional[str] = None
+    clear_openai_key: Optional[bool] = False
     anthropic_key: Optional[str] = None
     anthropic_model: Optional[str] = None
+    clear_anthropic_key: Optional[bool] = False
     gemini_key: Optional[str] = None
     gemini_model: Optional[str] = None
+    clear_gemini_key: Optional[bool] = False
     database_url: Optional[str] = None
+
+@app.get(f"{settings.API_PREFIX}/settings", tags=["System"])
+async def get_settings():
+    """Returns current server settings and configuration state."""
+    active_model = "fallback-rag"
+    if settings.DEFAULT_PROVIDER == "ollama":
+        active_model = settings.OLLAMA_MODEL
+    elif settings.DEFAULT_PROVIDER == "openai":
+        active_model = settings.OPENAI_MODEL
+    elif settings.DEFAULT_PROVIDER == "anthropic":
+        active_model = settings.ANTHROPIC_MODEL
+    elif settings.DEFAULT_PROVIDER == "gemini":
+        active_model = settings.GEMINI_MODEL
+
+    return {
+        "provider": settings.DEFAULT_PROVIDER,
+        "current_model": active_model,
+        "ollama_url": settings.OLLAMA_BASE_URL,
+        "ollama_model": settings.OLLAMA_MODEL,
+        "openai_model": settings.OPENAI_MODEL,
+        "openai_base_url": settings.OPENAI_BASE_URL or "",
+        "anthropic_model": settings.ANTHROPIC_MODEL,
+        "gemini_model": settings.GEMINI_MODEL,
+        "database_url": settings.DATABASE_URL or "",
+        "has_openai_key": bool(settings.OPENAI_API_KEY and len(settings.OPENAI_API_KEY.strip()) > 5),
+        "has_anthropic_key": bool(settings.ANTHROPIC_API_KEY and len(settings.ANTHROPIC_API_KEY.strip()) > 5),
+        "has_gemini_key": bool(settings.GEMINI_API_KEY and len(settings.GEMINI_API_KEY.strip()) > 5),
+        "openai_key_preview": mask_api_key(settings.OPENAI_API_KEY),
+        "anthropic_key_preview": mask_api_key(settings.ANTHROPIC_API_KEY),
+        "gemini_key_preview": mask_api_key(settings.GEMINI_API_KEY),
+        "database_type": "sqlite" if using_sqlite else "postgresql"
+    }
 
 @app.post(f"{settings.API_PREFIX}/settings", tags=["System"])
 async def update_settings(payload: SettingsUpdatePayload):
-    """Updates runtime configuration in memory."""
+    """Updates runtime configuration in memory and persists to .env."""
+    env_updates = {}
+
     if payload.provider:
         settings.DEFAULT_PROVIDER = payload.provider
-    if payload.ollama_url:
-        settings.OLLAMA_BASE_URL = payload.ollama_url
-    if payload.ollama_model:
-        settings.OLLAMA_MODEL = payload.ollama_model
-    if payload.openai_key is not None:
-        settings.OPENAI_API_KEY = payload.openai_key
+        env_updates["DEFAULT_PROVIDER"] = payload.provider
+    if payload.ollama_url and payload.ollama_url.strip():
+        settings.OLLAMA_BASE_URL = payload.ollama_url.strip()
+        env_updates["OLLAMA_BASE_URL"] = payload.ollama_url.strip()
+    if payload.ollama_model and payload.ollama_model.strip():
+        settings.OLLAMA_MODEL = payload.ollama_model.strip()
+        env_updates["OLLAMA_MODEL"] = payload.ollama_model.strip()
+
+    # OpenAI
+    if payload.clear_openai_key:
+        settings.OPENAI_API_KEY = ""
+        env_updates["OPENAI_API_KEY"] = ""
+    elif payload.openai_key and payload.openai_key.strip():
+        settings.OPENAI_API_KEY = payload.openai_key.strip()
+        env_updates["OPENAI_API_KEY"] = payload.openai_key.strip()
+
     if payload.openai_model:
         settings.OPENAI_MODEL = payload.openai_model
+        env_updates["OPENAI_MODEL"] = payload.openai_model
     if payload.openai_base_url is not None:
-        settings.OPENAI_BASE_URL = payload.openai_base_url if payload.openai_base_url.strip() else None
-    if payload.anthropic_key is not None:
-        settings.ANTHROPIC_API_KEY = payload.anthropic_key
+        val = payload.openai_base_url.strip() or None
+        settings.OPENAI_BASE_URL = val
+        env_updates["OPENAI_BASE_URL"] = val or ""
+
+    # Anthropic
+    if payload.clear_anthropic_key:
+        settings.ANTHROPIC_API_KEY = ""
+        env_updates["ANTHROPIC_API_KEY"] = ""
+    elif payload.anthropic_key and payload.anthropic_key.strip():
+        settings.ANTHROPIC_API_KEY = payload.anthropic_key.strip()
+        env_updates["ANTHROPIC_API_KEY"] = payload.anthropic_key.strip()
+
     if payload.anthropic_model:
         settings.ANTHROPIC_MODEL = payload.anthropic_model
-    if payload.gemini_key is not None:
-        settings.GEMINI_API_KEY = payload.gemini_key
+        env_updates["ANTHROPIC_MODEL"] = payload.anthropic_model
+
+    # Gemini
+    if payload.clear_gemini_key:
+        settings.GEMINI_API_KEY = ""
+        env_updates["GEMINI_API_KEY"] = ""
+    elif payload.gemini_key and payload.gemini_key.strip():
+        settings.GEMINI_API_KEY = payload.gemini_key.strip()
+        env_updates["GEMINI_API_KEY"] = payload.gemini_key.strip()
+
     if payload.gemini_model:
         settings.GEMINI_MODEL = payload.gemini_model
-    if payload.database_url:
-        settings.DATABASE_URL = payload.database_url
+        env_updates["GEMINI_MODEL"] = payload.gemini_model
+
+    # Database
+    if payload.database_url and payload.database_url.strip():
+        new_db = payload.database_url.strip()
+        settings.DATABASE_URL = new_db
+        env_updates["DATABASE_URL"] = new_db
+        await reinit_database(new_db)
+
+    # Persist to .env
+    if env_updates:
+        persist_settings_to_env(env_updates)
 
     available = ["fallback"]
     ollama = OllamaProvider(base_url=settings.OLLAMA_BASE_URL)
@@ -167,10 +288,22 @@ async def update_settings(payload: SettingsUpdatePayload):
     if settings.GEMINI_API_KEY and len(settings.GEMINI_API_KEY.strip()) > 5:
         available.append("gemini")
 
+    active_model = "fallback-rag"
+    if settings.DEFAULT_PROVIDER == "ollama":
+        active_model = settings.OLLAMA_MODEL
+    elif settings.DEFAULT_PROVIDER == "openai":
+        active_model = settings.OPENAI_MODEL
+    elif settings.DEFAULT_PROVIDER == "anthropic":
+        active_model = settings.ANTHROPIC_MODEL
+    elif settings.DEFAULT_PROVIDER == "gemini":
+        active_model = settings.GEMINI_MODEL
+
     return {
         "status": "success",
         "current_provider": settings.DEFAULT_PROVIDER,
-        "available_providers": available
+        "current_model": active_model,
+        "available_providers": available,
+        "database_type": "sqlite" if using_sqlite else "postgresql"
     }
 
 # ----------------- Session Endpoints ----------------- #

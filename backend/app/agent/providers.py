@@ -114,14 +114,19 @@ class AnthropicProvider(BaseLLMProvider):
         for m in messages:
             anthropic_messages.append({"role": m["role"], "content": m["content"]})
 
-        res = await client.messages.create(
-            model=self.model,
-            max_tokens=4096,
-            temperature=temperature,
-            system=full_system,
-            messages=anthropic_messages
-        )
-        return res.content[0].text
+        try:
+            res = await client.messages.create(
+                model=self.model,
+                max_tokens=4096,
+                temperature=temperature,
+                system=full_system,
+                messages=anthropic_messages
+            )
+            return res.content[0].text
+        except Exception as e:
+            logger.warning(f"Anthropic API error ({e}). Falling back to GroundedFallbackProvider.")
+            fallback = GroundedFallbackProvider()
+            return await fallback.generate_response(system_prompt, messages, context_str, temperature)
 
 class OpenAIProvider(BaseLLMProvider):
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
@@ -150,12 +155,17 @@ class OpenAIProvider(BaseLLMProvider):
         }
         full_messages = [system_msg] + messages
 
-        res = await client.chat.completions.create(
-            model=self.model,
-            messages=full_messages,
-            temperature=temperature
-        )
-        return res.choices[0].message.content or ""
+        try:
+            res = await client.chat.completions.create(
+                model=self.model,
+                messages=full_messages,
+                temperature=temperature
+            )
+            return res.choices[0].message.content or ""
+        except Exception as e:
+            logger.warning(f"OpenAI API error ({e}). Falling back to GroundedFallbackProvider.")
+            fallback = GroundedFallbackProvider()
+            return await fallback.generate_response(system_prompt, messages, context_str, temperature)
 
 class GeminiProvider(BaseLLMProvider):
     def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
@@ -187,12 +197,17 @@ class GeminiProvider(BaseLLMProvider):
         }
         full_messages = [system_msg] + messages
 
-        res = await client.chat.completions.create(
-            model=self.model,
-            messages=full_messages,
-            temperature=temperature
-        )
-        return res.choices[0].message.content or ""
+        try:
+            res = await client.chat.completions.create(
+                model=self.model,
+                messages=full_messages,
+                temperature=temperature
+            )
+            return res.choices[0].message.content or ""
+        except Exception as e:
+            logger.warning(f"Gemini API error ({e}). Falling back to GroundedFallbackProvider.")
+            fallback = GroundedFallbackProvider()
+            return await fallback.generate_response(system_prompt, messages, context_str, temperature)
 
 class GroundedFallbackProvider(BaseLLMProvider):
     """

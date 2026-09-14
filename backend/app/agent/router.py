@@ -37,13 +37,14 @@ class AgentRouter:
         """
         provider_name = (requested_provider or settings.DEFAULT_PROVIDER).lower()
 
-        # If model starts with gemini, route to gemini
-        if model and model.startswith("gemini"):
-            provider_name = "gemini"
-        elif model and model.startswith("claude"):
-            provider_name = "anthropic"
-        elif model and (model.startswith("gpt") or model.startswith("o1")):
-            provider_name = "openai"
+        # If requested_provider was not explicitly specified, infer from model name prefix
+        if not requested_provider:
+            if model and model.startswith("gemini"):
+                provider_name = "gemini"
+            elif model and model.startswith("claude"):
+                provider_name = "anthropic"
+            elif model and (model.startswith("gpt") or model.startswith("o1")):
+                provider_name = "openai"
 
         if provider_name == "ollama":
             ollama = OllamaProvider(model=model)

@@ -79,6 +79,7 @@ class ModelStatusResponse(BaseModel):
     ollama_available: bool
     ollama_models: List[str] = []
     current_provider: str
+    current_model: Optional[str] = None
     available_providers: List[str] = []
     database_connected: bool
     database_type: str
