@@ -584,13 +584,15 @@ export default function SettingsModal({
                   </div>
                 </div>
 
-                {/* Subtle detected models indicator if local models exist */}
-                {detectedModels.length > 0 && (
-                  <div className="local-detected-strip">
-                    <span className="local-detected-dot" />
-                    <span>
-                      {detectedModels.length} local {detectedModels.length === 1 ? 'model' : 'models'} detected ({detectedModels.join(', ')})
-                    </span>
+                {/* Clean list format for scanned Ollama models */}
+                <div className="local-scanned-container">
+                  <div className="local-scanned-header">
+                    <div className="local-scanned-title-wrap">
+                      <span className="local-detected-dot" />
+                      <span className="local-scanned-title">
+                        Detected Local Models ({detectedModels.length})
+                      </span>
+                    </div>
                     <button
                       type="button"
                       className="local-rescan-btn"
@@ -598,11 +600,54 @@ export default function SettingsModal({
                       disabled={scanning}
                       title="Rescan local models"
                     >
-                      <RefreshCw size={11} className={scanning ? 'animate-spin' : ''} />
+                      <RefreshCw size={12} className={scanning ? 'animate-spin' : ''} />
                       <span>{scanning ? 'Scanning...' : 'Rescan'}</span>
                     </button>
                   </div>
-                )}
+
+                  {detectedModels.length > 0 ? (
+                    <div className="local-scanned-list">
+                      {detectedModels.map((modelName) => {
+                        const isActive =
+                          provider === 'ollama' &&
+                          (activeModelId === modelName || ollamaModel === modelName);
+                        return (
+                          <div
+                            key={modelName}
+                            className={`local-scanned-item ${isActive ? 'active' : ''}`}
+                            onClick={() => {
+                              setOllamaModel(modelName);
+                              setProvider('ollama');
+                              setActiveModelId(modelName);
+                              if (onChangeProvider) onChangeProvider('ollama');
+                              if (onChangeModel) onChangeModel(modelName);
+                            }}
+                            title={`Click to select ${modelName}`}
+                          >
+                            <div className="local-scanned-item-left">
+                              <Cpu size={14} className="local-scanned-icon" />
+                              <span className="local-scanned-model-name">{modelName}</span>
+                            </div>
+                            <div className="local-scanned-item-right">
+                              {isActive ? (
+                                <span className="local-scanned-badge active">
+                                  <Check size={11} /> Active
+                                </span>
+                              ) : (
+                                <span className="local-scanned-badge">Available</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="local-scanned-empty">
+                      No local models detected. Make sure Ollama is running and run{' '}
+                      <code className="local-code">ollama pull &lt;model&gt;</code> in your terminal.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
