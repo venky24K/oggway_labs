@@ -157,6 +157,43 @@ class OpenAIProvider(BaseLLMProvider):
         )
         return res.choices[0].message.content or ""
 
+class GeminiProvider(BaseLLMProvider):
+    def __init__(self, api_key: Optional[str] = None, model: Optional[str] = None):
+        self.api_key = api_key or settings.GEMINI_API_KEY
+        self.model = model or settings.GEMINI_MODEL
+
+    async def check_health(self) -> bool:
+        return bool(self.api_key and len(self.api_key.strip()) > 10)
+
+    async def generate_response(
+        self, 
+        system_prompt: str, 
+        messages: List[Dict[str, str]], 
+        context_str: str,
+        temperature: float = 0.3
+    ) -> str:
+        if not self.api_key:
+            raise ValueError("Google Gemini API key is not configured.")
+
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(
+            api_key=self.api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+        )
+
+        system_msg = {
+            "role": "system",
+            "content": f"{system_prompt}\n\n=== GROUNDED PODCAST TRANSCRIPTS ===\n{context_str}"
+        }
+        full_messages = [system_msg] + messages
+
+        res = await client.chat.completions.create(
+            model=self.model,
+            messages=full_messages,
+            temperature=temperature
+        )
+        return res.choices[0].message.content or ""
+
 class GroundedFallbackProvider(BaseLLMProvider):
     """
     Intelligent Grounded Synthesizer: operates with zero external LLM dependencies,

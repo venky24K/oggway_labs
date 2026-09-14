@@ -20,10 +20,11 @@ from backend.app.agent.providers import (
     OllamaProvider,
     AnthropicProvider,
     OpenAIProvider,
+    GeminiProvider,
     GroundedFallbackProvider
 )
 
-logger = logging.getLogger("lenny_assistant.agent")
+logger = logging.getLogger("lenny_assistant.router")
 
 class AgentRouter:
     def __init__(self):
@@ -36,24 +37,39 @@ class AgentRouter:
         """
         provider_name = (requested_provider or settings.DEFAULT_PROVIDER).lower()
 
+        # If model starts with gemini, route to gemini
+        if model and model.startswith("gemini"):
+            provider_name = "gemini"
+        elif model and model.startswith("claude"):
+            provider_name = "anthropic"
+        elif model and (model.startswith("gpt") or model.startswith("o1")):
+            provider_name = "openai"
+
         if provider_name == "ollama":
             ollama = OllamaProvider(model=model)
             if await ollama.check_health():
-                return ollama, "ollama"
+                return ollama, f"ollama ({model or settings.OLLAMA_MODEL})"
             logger.info("Ollama is not running or unreachable at %s. Falling back to GroundedFallbackProvider.", settings.OLLAMA_BASE_URL)
             return self.fallback_provider, "fallback (ollama offline)"
+
+        elif provider_name == "gemini":
+            gemini = GeminiProvider(model=model)
+            if await gemini.check_health():
+                return gemini, f"gemini ({model or settings.GEMINI_MODEL})"
+            logger.info("Gemini API key is not configured. Falling back to GroundedFallbackProvider.")
+            return self.fallback_provider, "fallback (gemini key missing)"
 
         elif provider_name == "anthropic":
             anthropic = AnthropicProvider(model=model)
             if await anthropic.check_health():
-                return anthropic, "anthropic"
+                return anthropic, f"anthropic ({model or settings.ANTHROPIC_MODEL})"
             logger.info("Anthropic API key is not configured. Falling back to GroundedFallbackProvider.")
             return self.fallback_provider, "fallback (anthropic key missing)"
 
         elif provider_name == "openai":
             openai = OpenAIProvider(model=model)
             if await openai.check_health():
-                return openai, "openai"
+                return openai, f"openai ({model or settings.OPENAI_MODEL})"
             logger.info("OpenAI API key is not configured. Falling back to GroundedFallbackProvider.")
             return self.fallback_provider, "fallback (openai key missing)"
 

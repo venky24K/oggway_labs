@@ -12,8 +12,39 @@ import {
   AlertCircle,
   Terminal,
   Info,
-  Key
+  Key,
+  Layers,
+  Sparkles,
+  Search
 } from 'lucide-react';
+
+const DEFAULT_MODELS = [
+  // Gemini (Google)
+  { id: 'gemini-3.6-flash', name: 'gemini-3.6-flash', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
+  { id: 'gemini-3.1-pro-preview', name: 'gemini-3.1-pro-preview', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
+  { id: 'gemini-3.1-pro', name: 'gemini-3.1-pro', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
+  { id: 'gemini-3.1-flash', name: 'gemini-3.1-flash', provider: 'gemini', providerLabel: 'Gemini', category: 'Cloud' },
+
+  // OpenAI
+  { id: 'gpt-4o', name: 'gpt-4o', provider: 'openai', providerLabel: 'OpenAI', category: 'Cloud' },
+  { id: 'gpt-4o-mini', name: 'gpt-4o-mini', provider: 'openai', providerLabel: 'OpenAI', category: 'Cloud' },
+  { id: 'o1-preview', name: 'o1-preview', provider: 'openai', providerLabel: 'OpenAI', category: 'Cloud' },
+  { id: 'o1-mini', name: 'o1-mini', provider: 'openai', providerLabel: 'OpenAI', category: 'Cloud' },
+
+  // Anthropic
+  { id: 'claude-3-5-sonnet-20241022', name: 'claude-3-5-sonnet-20241022', provider: 'anthropic', providerLabel: 'Anthropic', category: 'Cloud' },
+  { id: 'claude-3-5-haiku-20241022', name: 'claude-3-5-haiku-20241022', provider: 'anthropic', providerLabel: 'Anthropic', category: 'Cloud' },
+  { id: 'claude-3-opus-20240229', name: 'claude-3-opus-20240229', provider: 'anthropic', providerLabel: 'Anthropic', category: 'Cloud' },
+
+  // Ollama (Local)
+  { id: 'llama3.2', name: 'llama3.2', provider: 'ollama', providerLabel: 'Ollama', category: 'Local' },
+  { id: 'mistral', name: 'mistral', provider: 'ollama', providerLabel: 'Ollama', category: 'Local' },
+  { id: 'deepseek-r1:8b', name: 'deepseek-r1:8b', provider: 'ollama', providerLabel: 'Ollama', category: 'Local' },
+  { id: 'phi3', name: 'phi3', provider: 'ollama', providerLabel: 'Ollama', category: 'Local' },
+
+  // Deterministic Fallback
+  { id: 'fallback-rag', name: 'Grounded Fallback Engine', provider: 'fallback', providerLabel: 'Fallback', category: 'Local' }
+];
 
 export default function SettingsModal({
   isOpen,
@@ -21,17 +52,24 @@ export default function SettingsModal({
   modelStatus,
   onSaveConfig,
   currentProvider,
-  onChangeProvider
+  onChangeProvider,
+  currentModel,
+  onChangeModel,
+  initialTab = 'models'
 }) {
-  const [activeTab, setActiveTab] = useState('local'); // 'local' | 'cloud' | 'database' | 'active'
+  const [activeTab, setActiveTab] = useState(initialTab || 'models'); // 'models' | 'local' | 'main' | 'database'
   const [provider, setProvider] = useState(currentProvider || 'ollama');
+  const [activeModelId, setActiveModelId] = useState(currentModel || 'llama3.2');
+  const [searchFilter, setSearchFilter] = useState('');
+
+  // Local Ollama
   const [ollamaUrl, setOllamaUrl] = useState('http://localhost:11434');
-  const [ollamaModel, setOllamaModel] = useState('llama3.2');
+  const [ollamaModel, setOllamaModel] = useState(currentModel || 'llama3.2');
   const [detectedModels, setDetectedModels] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [ollamaConnected, setOllamaConnected] = useState(false);
 
-  // Cloud Providers
+  // Main / Cloud Providers
   const [openaiKey, setOpenaiKey] = useState('');
   const [openaiModel, setOpenaiModel] = useState('gpt-4o');
   const [openaiBaseUrl, setOpenaiBaseUrl] = useState('');
@@ -39,11 +77,26 @@ export default function SettingsModal({
   const [anthropicKey, setAnthropicKey] = useState('');
   const [anthropicModel, setAnthropicModel] = useState('claude-3-5-sonnet-20241022');
 
+  const [geminiKey, setGeminiKey] = useState('');
+  const [geminiModel, setGeminiModel] = useState('gemini-3.1-pro');
+
   // Database
   const [databaseUrl, setDatabaseUrl] = useState(
     'postgresql://postgres.cbanzhreccncemwwdpqh:Venky2427..@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres'
   );
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Synchronize initialTab when opening
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+
+  useEffect(() => {
+    if (currentProvider) setProvider(currentProvider);
+    if (currentModel) setActiveModelId(currentModel);
+  }, [currentProvider, currentModel]);
 
   useEffect(() => {
     if (modelStatus) {
@@ -55,6 +108,48 @@ export default function SettingsModal({
   }, [modelStatus]);
 
   if (!isOpen) return null;
+
+  // Merge detected models into full catalog
+  const dynamicOllamaModels = detectedModels
+    .filter((dm) => !DEFAULT_MODELS.some((m) => m.id === dm))
+    .map((dm) => ({
+      id: dm,
+      name: dm,
+      provider: 'ollama',
+      providerLabel: 'Ollama',
+      category: 'Local'
+    }));
+
+  const allModels = [...DEFAULT_MODELS, ...dynamicOllamaModels];
+
+  const filteredModels = searchFilter.trim()
+    ? allModels.filter(
+        (m) =>
+          m.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+          m.providerLabel.toLowerCase().includes(searchFilter.toLowerCase())
+      )
+    : allModels;
+
+  // Check if a model is currently active
+  const isModelActive = (m) => {
+    if (m.provider === 'fallback' && provider === 'fallback') return true;
+    if (m.provider === provider && (activeModelId === m.id || activeModelId === m.name)) return true;
+    return activeModelId === m.id;
+  };
+
+  // Toggle model to active
+  const handleToggleModel = (m) => {
+    setActiveModelId(m.id);
+    setProvider(m.provider);
+
+    if (m.provider === 'ollama') setOllamaModel(m.id);
+    else if (m.provider === 'openai') setOpenaiModel(m.id);
+    else if (m.provider === 'anthropic') setAnthropicModel(m.id);
+    else if (m.provider === 'gemini') setGeminiModel(m.id);
+
+    if (onChangeProvider) onChangeProvider(m.provider);
+    if (onChangeModel) onChangeModel(m.id);
+  };
 
   // Scan Ollama models dynamically via backend API
   const handleScanOllamaModels = async () => {
@@ -80,7 +175,8 @@ export default function SettingsModal({
   };
 
   const handleSaveAll = async () => {
-    onChangeProvider(provider);
+    if (onChangeProvider) onChangeProvider(provider);
+    if (onChangeModel) onChangeModel(activeModelId);
 
     // Save to backend settings API
     try {
@@ -96,6 +192,8 @@ export default function SettingsModal({
           openai_base_url: openaiBaseUrl,
           anthropic_key: anthropicKey,
           anthropic_model: anthropicModel,
+          gemini_key: geminiKey,
+          gemini_model: geminiModel,
           database_url: databaseUrl
         })
       });
@@ -106,12 +204,15 @@ export default function SettingsModal({
     if (onSaveConfig) {
       onSaveConfig({
         provider,
+        model: activeModelId,
         ollamaUrl,
         ollamaModel,
         openaiKey,
         openaiModel,
         anthropicKey,
         anthropicModel,
+        geminiKey,
+        geminiModel,
         databaseUrl
       });
     }
@@ -120,7 +221,7 @@ export default function SettingsModal({
     setTimeout(() => {
       setSavedSuccess(false);
       onClose();
-    }, 1200);
+    }, 1000);
   };
 
   return (
@@ -129,11 +230,11 @@ export default function SettingsModal({
         {/* Header */}
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Server size={20} color="#6366f1" />
+            <Server size={20} color="#38bdf8" />
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>LLM Models & Infrastructure Settings</h3>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Settings & Model Management</h3>
               <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                Configure local Ollama, cloud providers, and Supabase persistence
+                Configure models, local engines, main providers, and Supabase persistence
               </p>
             </div>
           </div>
@@ -144,44 +245,91 @@ export default function SettingsModal({
 
         {/* Two-section Studio Container */}
         <div className="settings-studio-container">
-          {/* Left Navigation Headings */}
+          {/* Left Navigation Headings (Active tab shows solid blue pill) */}
           <div className="settings-nav-pane">
+            <button
+              className={`settings-nav-item ${activeTab === 'models' ? 'active' : ''}`}
+              onClick={() => setActiveTab('models')}
+            >
+              <span>Models</span>
+            </button>
+
             <button
               className={`settings-nav-item ${activeTab === 'local' ? 'active' : ''}`}
               onClick={() => setActiveTab('local')}
             >
-              <Cpu size={16} />
-              <span>Local Providers (Ollama)</span>
+              <span>Local Providers</span>
             </button>
 
             <button
-              className={`settings-nav-item ${activeTab === 'cloud' ? 'active' : ''}`}
-              onClick={() => setActiveTab('cloud')}
+              className={`settings-nav-item ${activeTab === 'main' ? 'active' : ''}`}
+              onClick={() => setActiveTab('main')}
             >
-              <Cloud size={16} />
-              <span>Cloud Providers (API)</span>
+              <span>Main Providers</span>
             </button>
 
             <button
               className={`settings-nav-item ${activeTab === 'database' ? 'active' : ''}`}
               onClick={() => setActiveTab('database')}
             >
-              <Database size={16} />
               <span>Database (Supabase)</span>
-            </button>
-
-            <button
-              className={`settings-nav-item ${activeTab === 'active' ? 'active' : ''}`}
-              onClick={() => setActiveTab('active')}
-            >
-              <CheckCircle2 size={16} />
-              <span>Active Engine Toggle</span>
             </button>
           </div>
 
           {/* Right Section Content */}
           <div className="settings-content-pane">
-            {/* 1. LOCAL PROVIDERS TAB */}
+            {/* 1. MODELS TAB (Matches User Screenshot) */}
+            {activeTab === 'models' && (
+              <div className="models-section-view">
+                <div className="models-section-header">
+                  <h2 className="models-title">Models</h2>
+                  <div className="models-search-wrapper">
+                    <Search size={14} color="var(--text-muted)" />
+                    <input
+                      type="text"
+                      placeholder="Filter models..."
+                      value={searchFilter}
+                      onChange={(e) => setSearchFilter(e.target.value)}
+                      className="models-search-input"
+                    />
+                    {searchFilter && (
+                      <button className="search-clear-btn" onClick={() => setSearchFilter('')}>
+                        ×
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Models List Table matching the screenshot */}
+                <div className="models-table-container">
+                  {filteredModels.map((m) => {
+                    const active = isModelActive(m);
+                    return (
+                      <div
+                        key={`${m.provider}-${m.id}`}
+                        className={`models-table-row ${active ? 'row-active' : ''}`}
+                        onClick={() => handleToggleModel(m)}
+                      >
+                        <div className="model-col-provider">{m.providerLabel}</div>
+                        <div className="model-col-name">{m.name}</div>
+                        <div className="model-col-toggle" onClick={(e) => e.stopPropagation()}>
+                          <label className="pill-switch">
+                            <input
+                              type="checkbox"
+                              checked={active}
+                              onChange={() => handleToggleModel(m)}
+                            />
+                            <span className="pill-slider"></span>
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 2. LOCAL PROVIDERS TAB */}
             {activeTab === 'local' && (
               <>
                 <div className="settings-banner">
@@ -227,10 +375,14 @@ export default function SettingsModal({
                         {detectedModels.map((m) => (
                           <div
                             key={m}
-                            className={`model-chip ${ollamaModel === m ? 'selected' : ''}`}
-                            onClick={() => setOllamaModel(m)}
+                            className={`model-chip ${activeModelId === m ? 'selected' : ''}`}
+                            onClick={() => {
+                              setOllamaModel(m);
+                              setActiveModelId(m);
+                              setProvider('ollama');
+                            }}
                           >
-                            <Check size={12} style={{ opacity: ollamaModel === m ? 1 : 0 }} />
+                            <Check size={12} style={{ opacity: activeModelId === m ? 1 : 0 }} />
                             <span>{m}</span>
                           </div>
                         ))}
@@ -330,12 +482,56 @@ export default function SettingsModal({
               </>
             )}
 
-            {/* 2. CLOUD PROVIDERS TAB */}
-            {activeTab === 'cloud' && (
+            {/* 3. MAIN PROVIDERS TAB (Cloud Providers: Gemini, OpenAI, Anthropic) */}
+            {activeTab === 'main' && (
               <>
                 <div className="settings-banner">
-                  <strong>Cloud Models:</strong> Configure OpenAI or Anthropic Claude API keys. All keys are stored
-                  safely in memory and in your local environment.
+                  <strong>Main Cloud Providers:</strong> Configure Google Gemini, OpenAI, or Anthropic Claude API keys.
+                  Keys are stored safely in memory and your local environment.
+                </div>
+
+                {/* Gemini Section */}
+                <div className="instructions-card">
+                  <h4>
+                    <Sparkles size={16} color="#38bdf8" />
+                    <span>Google Gemini Configuration</span>
+                  </h4>
+
+                  <div className="form-group" style={{ marginBottom: 12 }}>
+                    <label>Google Gemini API Key</label>
+                    <input
+                      type="password"
+                      className="form-input"
+                      value={geminiKey}
+                      onChange={(e) => setGeminiKey(e.target.value)}
+                      placeholder="AIzaSy..."
+                    />
+                    <div style={{ marginTop: 4 }}>
+                      <a
+                        href="https://aistudio.google.com/app/apikey"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="external-link"
+                      >
+                        <span>Get your API key here</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Model</label>
+                    <select
+                      className="form-input"
+                      value={geminiModel}
+                      onChange={(e) => setGeminiModel(e.target.value)}
+                    >
+                      <option value="gemini-3.1-pro">gemini-3.1-pro (Flagship Multimodal)</option>
+                      <option value="gemini-3.6-flash">gemini-3.6-flash (Fast & Responsive)</option>
+                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (Advanced Preview)</option>
+                      <option value="gemini-3.1-flash">gemini-3.1-flash (Standard Flash)</option>
+                    </select>
+                  </div>
                 </div>
 
                 {/* OpenAI Section */}
@@ -361,7 +557,7 @@ export default function SettingsModal({
                         rel="noopener noreferrer"
                         className="external-link"
                       >
-                        <span>Get your OpenAI API key here</span>
+                        <span>Get your API key here</span>
                         <ExternalLink size={11} />
                       </a>
                     </div>
@@ -418,7 +614,7 @@ export default function SettingsModal({
                         rel="noopener noreferrer"
                         className="external-link"
                       >
-                        <span>Get your Anthropic API key here</span>
+                        <span>Get your API key here</span>
                         <ExternalLink size={11} />
                       </a>
                     </div>
@@ -440,7 +636,7 @@ export default function SettingsModal({
               </>
             )}
 
-            {/* 3. DATABASE & STORAGE TAB */}
+            {/* 4. DATABASE & STORAGE TAB */}
             {activeTab === 'database' && (
               <>
                 <div className="settings-banner">
@@ -493,93 +689,13 @@ export default function SettingsModal({
                 </div>
               </>
             )}
-
-            {/* 4. ACTIVE ENGINE TOGGLE TAB */}
-            {activeTab === 'active' && (
-              <>
-                <div className="settings-banner">
-                  <strong>Active Inference Engine:</strong> Choose which engine handles your queries. Fallback is always
-                  available if local or cloud services become unreachable.
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div
-                    className={`quick-prompt-card ${provider === 'ollama' ? 'active' : ''}`}
-                    onClick={() => setProvider('ollama')}
-                    style={{
-                      cursor: 'pointer',
-                      borderColor: provider === 'ollama' ? '#818cf8' : 'var(--border-subtle)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontWeight: 600, color: '#f8fafc' }}>Ollama Local LLM</div>
-                      {provider === 'ollama' && <Check size={16} color="#818cf8" />}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      Runs locally on your machine ({ollamaModel}). 100% private, zero API fees.
-                    </div>
-                  </div>
-
-                  <div
-                    className={`quick-prompt-card ${provider === 'anthropic' ? 'active' : ''}`}
-                    onClick={() => setProvider('anthropic')}
-                    style={{
-                      cursor: 'pointer',
-                      borderColor: provider === 'anthropic' ? '#818cf8' : 'var(--border-subtle)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontWeight: 600, color: '#f8fafc' }}>Anthropic Claude 3.5 Sonnet</div>
-                      {provider === 'anthropic' && <Check size={16} color="#818cf8" />}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      High-intelligence cloud reasoning via official Anthropic Claude SDK.
-                    </div>
-                  </div>
-
-                  <div
-                    className={`quick-prompt-card ${provider === 'openai' ? 'active' : ''}`}
-                    onClick={() => setProvider('openai')}
-                    style={{
-                      cursor: 'pointer',
-                      borderColor: provider === 'openai' ? '#818cf8' : 'var(--border-subtle)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontWeight: 600, color: '#f8fafc' }}>OpenAI (GPT-4o)</div>
-                      {provider === 'openai' && <Check size={16} color="#818cf8" />}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      Fast multimodal cloud completions via official OpenAI API.
-                    </div>
-                  </div>
-
-                  <div
-                    className={`quick-prompt-card ${provider === 'fallback' ? 'active' : ''}`}
-                    onClick={() => setProvider('fallback')}
-                    style={{
-                      cursor: 'pointer',
-                      borderColor: provider === 'fallback' ? '#818cf8' : 'var(--border-subtle)'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontWeight: 600, color: '#f8fafc' }}>Grounded Fallback Engine</div>
-                      {provider === 'fallback' && <Check size={16} color="#818cf8" />}
-                    </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                      Zero-dependency deterministic RAG synthesizer. Works immediately on any machine with 0ms latency.
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         </div>
 
         {/* Footer */}
         <div className="modal-footer">
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            Active: <strong>{provider.toUpperCase()}</strong> ({provider === 'ollama' ? ollamaModel : provider})
+            Selected Model: <strong style={{ color: '#f8fafc' }}>{activeModelId}</strong> ({provider})
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>

@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o"
     OPENAI_BASE_URL: Optional[str] = None  # allows Groq, Together, DeepSeek, etc.
 
+    # Google Gemini
+    GEMINI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-1.5-flash"  # or gemini-3.1-pro, gemini-3.6-flash
+
     # Knowledge Base Path
     INDEX_PATH: str = "data/transcripts_index.json"
     

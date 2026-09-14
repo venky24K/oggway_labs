@@ -12,13 +12,25 @@ import {
   Check,
   Radio,
   Share2,
-  Layers
+  Layers,
+  ChevronDown
 } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
 import ArtifactViewer from './components/ArtifactViewer';
 import CitationBadge from './components/CitationBadge';
 import SettingsModal from './components/SettingsModal';
+
+const QUICK_MODELS = [
+  { id: 'llama3.2', name: 'llama3.2', provider: 'ollama' },
+  { id: 'mistral', name: 'mistral', provider: 'ollama' },
+  { id: 'gpt-4o', name: 'gpt-4o', provider: 'openai' },
+  { id: 'gpt-4o-mini', name: 'gpt-4o-mini', provider: 'openai' },
+  { id: 'claude-3-5-sonnet-20241022', name: 'claude-3-5-sonnet', provider: 'anthropic' },
+  { id: 'claude-3-5-haiku-20241022', name: 'claude-3-5-haiku', provider: 'anthropic' },
+  { id: 'gemini-3.1-pro', name: 'gemini-3.1-pro', provider: 'gemini' },
+  { id: 'fallback-rag', name: 'Grounded Fallback', provider: 'fallback' }
+];
 
 export default function App() {
   const [sessions, setSessions] = useState([]);
@@ -30,12 +42,27 @@ export default function App() {
   const [isArtifactExpanded, setIsArtifactExpanded] = useState(false);
   const [modelStatus, setModelStatus] = useState(null);
   const [currentProvider, setCurrentProvider] = useState('ollama');
+  const [currentModel, setCurrentModel] = useState('llama3.2');
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState('models');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
 
   const messagesEndRef = useRef(null);
+  const modelDropdownRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target)) {
+        setIsModelDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Initialize theme
   useEffect(() => {
@@ -139,6 +166,7 @@ export default function App() {
           session_id: currentSessionId,
           message: query,
           provider: currentProvider,
+          model: currentModel,
           generate_ship30,
           generate_artifact
         })
@@ -222,29 +250,71 @@ export default function App() {
           </div>
 
           <div className="header-right">
-            {/* Model Provider Pill */}
-            <div
-              className="status-pill"
-              onClick={() => setIsSettingsOpen(true)}
-              style={{ cursor: 'pointer' }}
-              title="Click to configure provider & settings"
-            >
-              <div
-                className={`pulse-dot ${
-                  modelStatus?.ollama_available || currentProvider !== 'ollama' ? '' : 'offline'
-                }`}
-              />
-              <span>
-                {currentProvider === 'ollama'
-                  ? modelStatus?.ollama_available
-                    ? 'Ollama Local (llama3.2)'
-                    : 'Ollama Offline (Fallback Ready)'
-                  : currentProvider === 'anthropic'
-                  ? 'Anthropic Claude'
-                  : currentProvider === 'openai'
-                  ? 'OpenAI'
-                  : 'Grounded Fallback Engine'}
-              </span>
+            {/* Model Selector Dropdown (No green dot, just model name + chevron, ellipsis if large) */}
+            <div className="model-selector-wrapper" ref={modelDropdownRef}>
+              <button
+                type="button"
+                className="model-selector-btn"
+                onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                title={`Active model: ${currentModel}`}
+              >
+                <span className="model-name-text">{currentModel}</span>
+                <ChevronDown
+                  size={13}
+                  className={`dropdown-chevron ${isModelDropdownOpen ? 'open' : ''}`}
+                />
+              </button>
+
+              {isModelDropdownOpen && (
+                <div className="model-dropdown-menu">
+                  <div className="model-dropdown-list">
+                    {QUICK_MODELS.map((m) => {
+                      const isSelected =
+                        currentModel === m.id ||
+                        (currentProvider === m.provider && currentModel === m.name);
+                      return (
+                        <div
+                          key={m.id}
+                          className={`model-dropdown-item ${isSelected ? 'selected' : ''}`}
+                          onClick={() => {
+                            setCurrentModel(m.id);
+                            setCurrentProvider(m.provider);
+                            setIsModelDropdownOpen(false);
+                            fetch('/api/settings', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                provider: m.provider,
+                                ollama_model: m.provider === 'ollama' ? m.id : undefined,
+                                openai_model: m.provider === 'openai' ? m.id : undefined,
+                                anthropic_model: m.provider === 'anthropic' ? m.id : undefined,
+                                gemini_model: m.provider === 'gemini' ? m.id : undefined
+                              })
+                            }).catch(() => {});
+                          }}
+                        >
+                          <span className="dropdown-item-name">{m.name}</span>
+                          {isSelected && <Check size={14} className="dropdown-item-check" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="model-dropdown-divider" />
+
+                  <button
+                    type="button"
+                    className="model-dropdown-see-all"
+                    onClick={() => {
+                      setIsModelDropdownOpen(false);
+                      setSettingsInitialTab('models');
+                      setIsSettingsOpen(true);
+                    }}
+                  >
+                    see all
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Artifact toggle button if artifact exists */}
@@ -505,8 +575,12 @@ export default function App() {
         modelStatus={modelStatus}
         currentProvider={currentProvider}
         onChangeProvider={setCurrentProvider}
+        currentModel={currentModel}
+        onChangeModel={setCurrentModel}
+        initialTab={settingsInitialTab}
         onSaveConfig={(cfg) => {
-          setCurrentProvider(cfg.provider);
+          if (cfg.provider) setCurrentProvider(cfg.provider);
+          if (cfg.model) setCurrentModel(cfg.model);
         }}
       />
     </div>

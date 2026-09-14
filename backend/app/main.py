@@ -101,6 +101,8 @@ async def get_models_status(endpoint: Optional[str] = None):
         available.append("anthropic")
     if settings.OPENAI_API_KEY:
         available.append("openai")
+    if settings.GEMINI_API_KEY:
+        available.append("gemini")
 
     return ModelStatusResponse(
         ollama_available=ollama_ok,
@@ -124,6 +126,8 @@ class SettingsUpdatePayload(BaseModel):
     openai_base_url: Optional[str] = None
     anthropic_key: Optional[str] = None
     anthropic_model: Optional[str] = None
+    gemini_key: Optional[str] = None
+    gemini_model: Optional[str] = None
     database_url: Optional[str] = None
 
 @app.post(f"{settings.API_PREFIX}/settings", tags=["System"])
@@ -145,6 +149,10 @@ async def update_settings(payload: SettingsUpdatePayload):
         settings.ANTHROPIC_API_KEY = payload.anthropic_key
     if payload.anthropic_model:
         settings.ANTHROPIC_MODEL = payload.anthropic_model
+    if payload.gemini_key is not None:
+        settings.GEMINI_API_KEY = payload.gemini_key
+    if payload.gemini_model:
+        settings.GEMINI_MODEL = payload.gemini_model
     if payload.database_url:
         settings.DATABASE_URL = payload.database_url
 
