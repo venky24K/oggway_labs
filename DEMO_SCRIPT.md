@@ -36,7 +36,7 @@
   > *You can switch to the Code tab, copy the code, or download the HTML file directly."*
 
 #### [2:25 - 2:45] Technical Trade-Off & Resilient Architecture
-* **Action:** Click the ⚙️ Settings icon showing Ollama, Claude, OpenAI, and Supabase config.
+* **Action:** Click the ⚙️ Settings icon showing the 4-tab Studio (Models, Local Providers with dynamic Ollama scan, Main Providers with Gemini, OpenAI, Claude, and Supabase config).
 * **Speaker Script:**
   > *"Let's talk about one critical technical trade-off: **Security vs. Interactivity in Artifact Rendering**.*
   > *Treating generated HTML as untrusted is essential. We render artifacts in an iframe with `sandbox="allow-scripts"` to enable dynamic JS calculators, but deliberately omit `allow-same-origin` and inject a strict Content Security Policy with `connect-src 'none'`. This prevents the artifact from accessing cookies, parent storage, or making exfiltration calls.*
@@ -46,8 +46,8 @@
 ---
 
 ### Checklist Before Recording:
-* [ ] FastAPI backend running on port 8000 (`uvicorn backend.app.main:app --port 8000`)
+* [ ] FastAPI backend running on port 8000 (`uvicorn backend.app.main:app --port 8000` or `python backend/run_server.py`)
 * [ ] Frontend running on port 5173 (`npm run dev`)
-* [ ] Browser opened in clean dark mode
+* [ ] Browser opened in clean Light or Dark mode
 * [ ] Microphone and webcam checked
 * [ ] Video uploaded to YouTube as "Unlisted" or "Public" and URL added to submission form.

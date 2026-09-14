@@ -82,3 +82,43 @@ async def test_chat_grounded_response(client):
     top_citation = data["citations"][0]
     assert "Elena Verna" in top_citation["guest"]
     assert "youtube.com" in top_citation["youtube_url"]
+
+@pytest.mark.asyncio
+async def test_chat_greeting_intent(client):
+    req_payload = {
+        "message": "hi",
+        "provider": "fallback"
+    }
+    response = await client.post("/api/chat", json=req_payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["grounded"] is False
+    assert len(data["citations"]) == 0
+    assert "Hello!" in data["message"]
+
+@pytest.mark.asyncio
+async def test_chat_closure_intent(client):
+    req_payload = {
+        "message": "thank you so much!",
+        "provider": "fallback"
+    }
+    response = await client.post("/api/chat", json=req_payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["grounded"] is False
+    assert len(data["citations"]) == 0
+    assert "welcome" in data["message"].lower()
+
+@pytest.mark.asyncio
+async def test_chat_meta_intent(client):
+    req_payload = {
+        "message": "who are you and what can you do?",
+        "provider": "fallback"
+    }
+    response = await client.post("/api/chat", json=req_payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["grounded"] is False
+    assert len(data["citations"]) == 0
+    assert "Lenny Growth Assistant" in data["message"]
+

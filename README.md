@@ -12,8 +12,9 @@ The **Lenny Growth Assistant** is a full-stack, AI-powered conversational web ap
 1. **Grounded Conversational Intelligence:** Answers PM and growth questions strictly from podcast transcripts, citing exact guests, episode titles, and clickable YouTube timestamp links (`https://www.youtube.com/watch?v=ID&t=Xs`).
 2. **Dedicated Ship 30 for 30 Content Skill:** Transforms insights into ~1,250-word atomic essays featuring irresistible hooks, 1-3-1 visual cadence, skimmable headings, and 48-hour implementation checklists (Nicolas Cole & Dickie Bush methodology).
 3. **Claude-Style Side-by-Side Artifact Viewer:** Renders interactive deliverables (such as live PLG Funnel Calculators and PRD canvases) beside the chat pane in a split-screen workspace with strict security sandboxing (`sandbox="allow-scripts"`, restricted CSP, isolated origin).
-4. **Flexible LLM Configuration & Resilient Fallback:** Seamlessly toggles between **Ollama (Local)**, **Anthropic Claude**, **OpenAI**, and a zero-dependency **Grounded Fallback Engine** that works out-of-the-box on any machine.
-5. **Persistence:** PostgreSQL (Supabase / Railway / Docker) with automatic local SQLite fallback (`aiosqlite`).
+4. **Flexible LLM Configuration & Resilient Fallback:** Seamlessly toggles between **Ollama (Local)**, **Anthropic Claude**, **OpenAI**, **Google Gemini**, and a zero-dependency **Grounded Fallback Engine** that works out-of-the-box on any machine.
+5. **Interactive Settings & Model Management Studio:** A 4-tab studio modal featuring model search, dynamic local model scanning, custom model addition with duplicate prevention, confirmation delete modals, live active `.env` key badges, and live database persistence status.
+6. **Persistence:** PostgreSQL (Supabase / Railway / Docker) with live dynamic engine reconnection and automatic local SQLite fallback (`aiosqlite`).
 
 ---
 
@@ -114,7 +115,7 @@ DATABASE_URL=
 # Example Supabase:
 # DATABASE_URL=postgresql+asyncpg://postgres:[PASSWORD]@[REF].supabase.co:5432/postgres
 
-# Active LLM Engine ("ollama", "anthropic", "openai", or "fallback")
+# Active LLM Engine ("ollama", "anthropic", "openai", "gemini", or "fallback")
 DEFAULT_PROVIDER=ollama
 
 # Local LLM (Ollama)
@@ -127,6 +128,10 @@ ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o
+OPENAI_BASE_URL=
+
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-1.5-flash
 ```
 
 ### Running Local LLMs with Ollama
@@ -135,9 +140,9 @@ OPENAI_MODEL=gpt-4o
    ```bash
    ollama pull llama3.2
    # or
-   ollama pull mistral
+   ollama pull qwen3.5:2b
    ```
-3. Start Ollama: `ollama serve`. The assistant will automatically connect to `http://localhost:11434`.
+3. Start Ollama: `ollama serve`. The assistant will automatically detect it via `http://localhost:11434`.
 
 ### Zero-Dependency Fallback Mode
 If Ollama is not installed or running, **the application will NOT crash**. The assistant auto-detects connectivity and switches to the **Grounded Fallback Engine**, executing full hybrid retrieval over the 15,194 podcast chunks, returning verified YouTube citations, Ship 30 for 30 essays, and interactive artifacts with zero latency.
@@ -147,12 +152,14 @@ If Ollama is not installed or running, **the application will NOT crash**. The a
 ## 🧪 Testing & Verification
 
 ### 1. Automated Test Suite (Pytest)
-Run the 12 automated unit and integration tests:
+Run the 13 automated unit and integration tests (executes in ~1.5 seconds):
 ```bash
+pytest backend/tests -v
+# or
 python -m pytest backend/tests -v
 ```
-**Coverage:**
-* `test_api.py`: Health check, provider listing, session CRUD, chat contract.
+**Coverage (13/13 Passing):**
+* `test_api.py`: Health check, provider listing, live runtime `/api/settings` GET/POST contracts, session CRUD, chat RAG grounding contract.
 * `test_rag.py`: BM25 indexing, Brian Chesky search, timestamp metadata, out-of-scope question handling.
 * `test_skills.py`: Ship 30 for 30 essay length & visual structure, HTML artifact parsing, sandboxing constraints.
 * `test_persistence.py`: Multi-turn session message retention, artifact session linking.
@@ -192,16 +199,17 @@ Treating AI-generated HTML as untrusted is critical. The Lenny Growth Assistant 
 | 4 | **Design Spec** | [design.md](design.md) | UI/UX principles, design system tokens, states, accessibility. |
 | 5 | **Architecture** | [architecture.md](architecture.md) | DB schema, REST contracts, RAG pipeline, LLM routing, security. |
 | 6 | **Agent Transcripts** | [agent_transcripts/](agent_transcripts/) | Engineering transcripts & post-mortem of failed attempts and fixes. |
-| 7 | **Tests** | [backend/tests/](backend/tests/) & [tests/manual_test_plan.md](tests/manual_test_plan.md) | 12 automated pytest tests + manual UI verification plan. |
+| 7 | **Tests** | [backend/tests/](backend/tests/) & [tests/manual_test_plan.md](tests/manual_test_plan.md) | 13 automated pytest tests + manual UI verification plan. |
 | 8 | **Demo Video Script** | [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | 2–3 minute video presentation script and walkthrough instructions. |
 
 ---
 
 ## 🤝 Forward Deployment Handoff & Troubleshooting
 
-* **PostgreSQL / Supabase Connection Issues:** If Supabase is unreachable, the system automatically falls back to local SQLite at `data/lenny_assistant.db`. Check the status pill in the header to verify active database driver.
+* **PostgreSQL / Supabase Connection Issues:** If Supabase is unreachable, the system automatically falls back to local SQLite at `data/lenny_assistant.db`. The Settings modal and header status pill dynamically display the active driver (`Supabase PostgreSQL Connected & Active` vs `Local SQLite Database Active`).
+* **Dynamic Database Reconnection:** Updating the database URL in the Settings modal dynamically tests and initializes the connection pool at runtime without needing a server restart.
 * **Adding New Podcast Transcripts:** Simply drop new markdown files into `data/transcripts/` and run:
   ```bash
   python -m backend.app.rag.ingest data/transcripts data/transcripts_index.json
   ```
-* **Switching LLM Providers Live:** Click the ⚙️ Settings icon in the UI header to switch between Ollama, Anthropic Claude, OpenAI, or Fallback without restarting the application.
+* **Switching LLM Providers & Models Live:** Click the ⚙️ Settings icon in the UI header to switch between Ollama, Anthropic Claude, OpenAI, Google Gemini, or Fallback without restarting the application. API keys configured in `.env` are protected from accidental blank overwrites.

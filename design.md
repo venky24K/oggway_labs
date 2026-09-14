@@ -47,15 +47,27 @@
 
 ## 3. Design Tokens & Visual Hierarchy
 
-### Color Palette (Tailored HSL / Hex)
-* **Canvas Dark (`--bg-primary`):** `#090d16` (Deep Obsidian for reduced eye fatigue during long working sessions)
-* **Surface Secondary (`--bg-secondary`):** `#0f172a` (Slate Surface for sidebars and panels)
-* **Elevated Card Glass (`--bg-card`):** `rgba(22, 32, 54, 0.65)` with `backdrop-filter: blur(12px)` and `border: 1px solid rgba(255, 255, 255, 0.08)`
-* **Primary Accent Gradient (`--accent-gradient`):** `linear-gradient(135deg, #6366f1 0%, #06b6d4 100%)` (Electric Indigo to Vivid Cyan)
-* **Status Accents:**
-  * Emerald (`#10b981`): Healthy connected state & verified citations
-  * Amber (`#f59e0b`): Offline fallback active / graceful degradation
-  * Rose (`#f43f5e`): Destructive actions (delete session)
+### Color Palette (Curated Solid Palette — Zero Gradients)
+* **Light Mode (Default Theme):**
+  * Canvas Primary (`--bg-primary`): `#ffffff` (Crisp editorial canvas)
+  * Surface Secondary (`--bg-secondary`): `#f8fafc` (Subtle off-white for sidebars and cards)
+  * Surface Tertiary (`--bg-tertiary`): `#f1f5f9` (Light gray for chips and input bars)
+  * Border Subtle (`--border-subtle`): `#e2e8f0`
+  * Text Primary (`--text-primary`): `#0f172a` (High-contrast slate black)
+  * Primary Accent (`--accent-primary`): `#2563eb` (Solid classic royal blue)
+  * Primary Accent Hover (`--accent-primary-hover`): `#1d4ed8`
+* **Dark Mode:**
+  * Canvas Primary (`--bg-primary`): `#090d16` (Deep obsidian)
+  * Surface Secondary (`--bg-secondary`): `#0f172a` (Slate surface for sidebar and panels)
+  * Surface Tertiary (`--bg-tertiary`): `#1e293b`
+  * Border Subtle (`--border-subtle`): `rgba(255, 255, 255, 0.08)`
+  * Text Primary (`--text-primary`): `#f8fafc`
+  * Primary Accent (`--accent-primary`): `#3b82f6` (Vivid solid blue)
+  * Primary Accent Hover (`--accent-primary-hover`): `#2563eb`
+* **Status Accents (Solid):**
+  * Emerald (`#10b981`): Connected services, healthy citations, verified `.env` keys.
+  * Amber (`#f59e0b`): Unset cloud keys warning / local fallback active.
+  * Rose (`#ef4444`): Destructive actions (model delete, session delete).
 
 ### Typography
 * **Primary Sans:** `'Inter', -apple-system, BlinkMacSystemFont, sans-serif`
@@ -102,3 +114,15 @@ Untrusted HTML generation poses severe risks if embedded directly into the DOM (
 * **Responsive Layout:**
   * **Desktop (> 1024px):** Side-by-side 50/50 split pane for chat and artifact viewer.
   * **Tablet & Mobile (< 768px):** Collapsible off-canvas drawer for sidebar; Artifact Viewer switches to an overlay drawer with a full-screen maximize button.
+
+---
+
+## 7. Settings & Model Management Studio Specification
+
+The Settings modal is architected as an editorial studio interface with fixed dimensions to prevent layout shifting:
+* **Fixed Modal Geometry:** Outer modal container is locked to `max-width: 820px; height: 650px;`, and the inner studio workspace is locked to `height: 520px;`. Content sections scroll internally so navigation tabs remain rock-solid.
+* **4-Tab Navigation:**
+  1. **Models:** Search filter input, sorted rows (available models on top, API-key disabled models at bottom with clear indicator), custom model addition bar (`[Provider Dropdown] [Model Name] [Add]`), and confirmation deletion modals.
+  2. **Local Providers:** Minimalist numbered Ollama setup instructions, direct single-line custom endpoint field with documentation links, and detected local models rendered in a clean card list (`.local-scanned-container`, `.local-scanned-item`) with `Active` or `Available` badges.
+  3. **Main Providers:** Clean password inputs for Google Gemini, OpenAI, and Anthropic Claude with official console links, custom OpenAI base URL, and green `Configured in .env (xxxx...xxxx)` badges.
+  4. **Database (Supabase):** Live status indicator (`Supabase PostgreSQL Connected & Active` or `Local SQLite Database Active`), connection string input, and knowledge base indexing statistics.

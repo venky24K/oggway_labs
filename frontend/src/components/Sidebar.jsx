@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plus, MessageSquare, Trash2, Radio, Sparkles, BookOpen, BarChart2 } from 'lucide-react';
+import { PLAYBOOK_SHORTCUTS } from '../prompts';
 
 export default function Sidebar({
   sessions,
@@ -10,6 +11,12 @@ export default function Sidebar({
   onSelectQuickPrompt,
   isOpen
 }) {
+  const getIcon = (iconName, color) => {
+    if (iconName === 'BookOpen') return <BookOpen size={12} color={color} />;
+    if (iconName === 'BarChart2') return <BarChart2 size={12} color={color} />;
+    return <Sparkles size={12} color={color} />;
+  };
+
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Header */}
@@ -23,40 +30,41 @@ export default function Sidebar({
             </div>
           </div>
         </div>
+
+        <button
+          className="btn-primary"
+          style={{ width: '100%', marginTop: '4px' }}
+          onClick={onNewChat}
+        >
+          <Plus size={16} />
+          <span>New Chat</span>
+        </button>
       </div>
 
-      {/* New Chat Button */}
-      <button className="btn-new-chat" onClick={onNewChat}>
-        <Plus size={16} />
-        <span>New Conversation</span>
-      </button>
-
-      {/* Session History Section */}
-      <div className="sidebar-section-title">Conversations</div>
+      {/* Sessions List */}
+      <div className="sidebar-section-title">Recent Conversations</div>
       <div className="sessions-list">
         {sessions.length === 0 ? (
-          <div style={{ padding: '16px 8px', fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-            No saved conversations yet.
+          <div style={{ padding: '16px', fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+            No conversations yet. Start a new session!
           </div>
         ) : (
-          sessions.map((sess) => (
+          sessions.map((s) => (
             <div
-              key={sess.id}
-              className={`session-item ${sess.id === currentSessionId ? 'active' : ''}`}
-              onClick={() => onSelectSession(sess.id)}
+              key={s.id}
+              className={`session-item ${s.id === currentSessionId ? 'active' : ''}`}
+              onClick={() => onSelectSession(s.id)}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
                 <MessageSquare size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
-                <span className="session-title" title={sess.title}>
-                  {sess.title || 'Untitled Session'}
-                </span>
+                <span className="session-title">{s.title || 'Untitled Chat'}</span>
               </div>
               <button
-                className="btn-delete-session"
+                className="session-delete-btn"
                 title="Delete session"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDeleteSession(sess.id);
+                  onDeleteSession(s.id);
                 }}
               >
                 <Trash2 size={13} />
@@ -69,41 +77,17 @@ export default function Sidebar({
       {/* Quick Prompts Library */}
       <div className="sidebar-section-title">Playbook Shortcuts</div>
       <div style={{ padding: '4px 12px 16px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <button
-          className="btn-action-chip"
-          style={{ width: '100%', justifyContent: 'flex-start' }}
-          onClick={() => onSelectQuickPrompt("What does Elena Verna say about B2B Product-Led Growth vs Sales-Led?")}
-        >
-          <Sparkles size={12} color="var(--accent-primary)" />
-          <span>Elena Verna: PLG vs SLG</span>
-        </button>
-
-        <button
-          className="btn-action-chip"
-          style={{ width: '100%', justifyContent: 'flex-start' }}
-          onClick={() => onSelectQuickPrompt("What are Brian Chesky's key lessons on Founder Mode and product playbooks?")}
-        >
-          <Sparkles size={12} color="var(--accent-secondary)" />
-          <span>Brian Chesky: Founder Mode</span>
-        </button>
-
-        <button
-          className="btn-action-chip"
-          style={{ width: '100%', justifyContent: 'flex-start' }}
-          onClick={() => onSelectQuickPrompt("Write a Ship 30 for 30 essay on finding Product-Market Fit based on Lenny's Podcast")}
-        >
-          <BookOpen size={12} color="var(--accent-amber)" />
-          <span>Ship 30 for 30 Essay</span>
-        </button>
-
-        <button
-          className="btn-action-chip"
-          style={{ width: '100%', justifyContent: 'flex-start' }}
-          onClick={() => onSelectQuickPrompt("Generate an interactive Growth & Retention Model calculator HTML artifact")}
-        >
-          <BarChart2 size={12} color="var(--accent-emerald)" />
-          <span>Interactive Calculator</span>
-        </button>
+        {PLAYBOOK_SHORTCUTS.map((item) => (
+          <button
+            key={item.id}
+            className="btn-action-chip"
+            style={{ width: '100%', justifyContent: 'flex-start' }}
+            onClick={() => onSelectQuickPrompt(item.query, item.options)}
+          >
+            {getIcon(item.icon, item.color)}
+            <span>{item.title}</span>
+          </button>
+        ))}
       </div>
     </aside>
   );

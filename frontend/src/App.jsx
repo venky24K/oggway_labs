@@ -20,6 +20,7 @@ import Sidebar from './components/Sidebar';
 import ArtifactViewer from './components/ArtifactViewer';
 import CitationBadge from './components/CitationBadge';
 import SettingsModal from './components/SettingsModal';
+import { WELCOME_QUICK_CARDS } from './prompts';
 
 const QUICK_MODELS = [
   { id: 'gemini-2.0-flash', name: 'gemini-2.0-flash', provider: 'gemini' },
@@ -317,7 +318,7 @@ export default function App() {
         onSelectSession={loadSession}
         onNewChat={handleNewChat}
         onDeleteSession={handleDeleteSession}
-        onSelectQuickPrompt={(prompt) => handleSendMessage({ text: prompt })}
+        onSelectQuickPrompt={(prompt, opts) => handleSendMessage({ text: prompt, ...(opts || {}) })}
         isOpen={sidebarOpen}
       />
 
@@ -454,63 +455,21 @@ export default function App() {
                   </p>
 
                   <div className="quick-prompts-grid">
-                    <div
-                      className="quick-prompt-card"
-                      onClick={() =>
-                        handleSendMessage({
-                          text: "How does Elena Verna define Product-Led Growth vs Sales-Led Growth?"
-                        })
-                      }
-                    >
-                      <div className="prompt-tag">Elena Verna • PLG Strategy</div>
-                      <div className="prompt-text">
-                        "How does Elena Verna define Product-Led Growth vs Sales-Led Growth?"
+                    {WELCOME_QUICK_CARDS.map((card) => (
+                      <div
+                        key={card.id}
+                        className="quick-prompt-card"
+                        onClick={() =>
+                          handleSendMessage({
+                            text: card.query,
+                            ...(card.options || {})
+                          })
+                        }
+                      >
+                        <div className="prompt-tag">{card.tag}</div>
+                        <div className="prompt-text">"{card.text}"</div>
                       </div>
-                    </div>
-
-                    <div
-                      className="quick-prompt-card"
-                      onClick={() =>
-                        handleSendMessage({
-                          text: "What are Brian Chesky's key principles for 'Founder Mode' and redesigning product reviews?"
-                        })
-                      }
-                    >
-                      <div className="prompt-tag">Brian Chesky • Leadership</div>
-                      <div className="prompt-text">
-                        "What are Brian Chesky's key principles for Founder Mode?"
-                      </div>
-                    </div>
-
-                    <div
-                      className="quick-prompt-card"
-                      onClick={() =>
-                        handleSendMessage({
-                          text: "Write a Ship 30 for 30 essay on product-led growth retention loops based on Lenny's Podcast",
-                          generate_ship30: true
-                        })
-                      }
-                    >
-                      <div className="prompt-tag">Ship 30 for 30 • Atomic Essay</div>
-                      <div className="prompt-text">
-                        "⚡ Turn PLG retention loops into an ~1,250-word Ship 30 for 30 essay"
-                      </div>
-                    </div>
-
-                    <div
-                      className="quick-prompt-card"
-                      onClick={() =>
-                        handleSendMessage({
-                          text: "Generate an interactive Growth & Retention Model calculator HTML artifact",
-                          generate_artifact: true
-                        })
-                      }
-                    >
-                      <div className="prompt-tag">Interactive Artifact • Viewer</div>
-                      <div className="prompt-text">
-                        "📊 Generate an interactive Growth & Retention Model calculator widget"
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               ) : (
@@ -549,34 +508,38 @@ export default function App() {
                       {/* Action Chips for Assistant responses */}
                       {m.role === 'assistant' && (
                         <div className="message-actions">
-                          <button
-                            className="btn-action-chip"
-                            onClick={() =>
-                              handleSendMessage({
-                                text: `Turn this into an ~1,250-word Ship 30 for 30 essay: ${m.content.slice(
-                                  0,
-                                  200
-                                )}`,
-                                generate_ship30: true
-                              })
-                            }
-                          >
-                            <BookOpen size={12} color="var(--accent-amber)" />
-                            <span>Ship 30 for 30 Essay</span>
-                          </button>
+                          {m.citations_json && m.citations_json.length > 0 && (
+                            <>
+                              <button
+                                className="btn-action-chip"
+                                onClick={() =>
+                                  handleSendMessage({
+                                    text: `Turn this into an ~1,250-word Ship 30 for 30 essay: ${m.content.slice(
+                                      0,
+                                      200
+                                    )}`,
+                                    generate_ship30: true
+                                  })
+                                }
+                              >
+                                <BookOpen size={12} color="var(--accent-amber)" />
+                                <span>Ship 30 for 30 Essay</span>
+                              </button>
 
-                          <button
-                            className="btn-action-chip"
-                            onClick={() =>
-                              handleSendMessage({
-                                text: `Generate an interactive HTML artifact calculator based on this framework`,
-                                generate_artifact: true
-                              })
-                            }
-                          >
-                            <Code2 size={12} color="var(--accent-emerald)" />
-                            <span>Interactive Artifact</span>
-                          </button>
+                              <button
+                                className="btn-action-chip"
+                                onClick={() =>
+                                  handleSendMessage({
+                                    text: `Generate an interactive HTML artifact calculator based on this framework`,
+                                    generate_artifact: true
+                                  })
+                                }
+                              >
+                                <Code2 size={12} color="var(--accent-emerald)" />
+                                <span>Interactive Artifact</span>
+                              </button>
+                            </>
+                          )}
 
                           <button
                             className="btn-action-chip"

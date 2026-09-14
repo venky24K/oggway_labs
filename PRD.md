@@ -32,7 +32,8 @@
   * Direct YouTube timestamp deep-linking (`https://www.youtube.com/watch?v=ID&t=Xs`).
   * Dedicated **Ship 30 for 30** Content Skill generating structured ~1,250-word atomic essays with irresistible hooks, 1-3-1 cadence, and actionable takeaways.
   * **Claude-Style Side-by-Side Artifact Viewer** with strict iframe sandboxing (`sandbox="allow-scripts"`, restricted CSP, no cookies/storage).
-  * Flexible LLM toggle: Ollama (Local), Anthropic Claude, OpenAI, and Grounded Fallback Engine.
+  * Flexible LLM toggle: Ollama (Local), Anthropic Claude, OpenAI, Google Gemini, and Grounded Fallback Engine.
+  * Interactive **Settings & Model Management Studio** with 4 tabs (Models, Local Providers, Main Providers, Database persistence), live dynamic Ollama scanning, custom model validation, and protected `.env` key persistence.
   * Multi-session persistence with PostgreSQL (Supabase) + automatic SQLite fallback.
 * **What We Intentionally Excluded & Rationale:**
   * *Live Voice Transcription Pipeline:* Excluded to keep local startup instant; all 303 transcripts are pre-parsed.
@@ -48,7 +49,8 @@
 | **Local Model (Ollama) Latency & Availability** | High | Evaluator machine may not have Ollama installed or running. The system auto-detects Ollama health and provides a zero-dependency **Grounded Fallback Engine** that synthesizes grounded citations, essays, and artifacts with 0ms cold-start. |
 | **Unsafe Artifact Rendering (XSS / Data Leakage)** | Critical | Render all HTML artifacts inside an isolated `<iframe>` with `sandbox="allow-scripts"` (without `allow-same-origin` or `allow-top-navigation`) and inject a strict Content Security Policy (`connect-src 'none'`). |
 | **Context Window Truncation on Long Podcasts** | Medium | Turn-aware semantic chunker (~350 words) preserving speaker metadata and timestamps, preventing memory overflow while retaining conversational nuance. |
-| **Database Connection Failures** | Medium | SQLAlchemy async engine dynamically inspects `DATABASE_URL`; if PostgreSQL / Supabase is unreachable, it seamlessly falls back to local SQLite without crashing. |
+| **Database Connection Failures** | Medium | SQLAlchemy async engine dynamically inspects `DATABASE_URL` with runtime reconnection (`reinit_database`); if PostgreSQL / Supabase is unreachable, it seamlessly falls back to local SQLite without crashing. |
+| **Accidental API Key Erasure** | High | Frontend forms leaving untouched keys blank could wipe `.env` variables. Backend `POST /api/settings` enforces non-empty string checks and explicit deletion flags. |
 
 ---
 
@@ -74,6 +76,15 @@
 4. User interacts with live sliders (Traffic, Signup Rate, Churn) and observes real-time projected ARR calculations.
 5. User can switch between **Preview** and **Code** tabs, copy the code, or download the `.html` file.
 
+### Flow 4: Model Management & Settings Studio
+1. User clicks the model dropdown in the header or the ⚙️ Settings icon.
+2. The 4-tab studio opens:
+   * **Models:** Filter models with search, view available models at top and key-disabled models at bottom, toggle active model with solid blue pill, add custom models with duplicate validation, delete custom models with confirmation.
+   * **Local Providers:** Setup guide for Ollama, custom endpoint configuration, and dynamic card list of detected local models with status badges (`Active` / `Available`).
+   * **Main Providers:** Configure Google Gemini, OpenAI, and Anthropic keys with masked previews and green `.env` active indicators.
+   * **Database:** Monitor live Supabase PostgreSQL vs local SQLite driver status and update connection URI.
+3. Applying settings immediately persists updates in memory and `.env` without wiping unset keys.
+
 ---
 
 ## 4. Acceptance Criteria
@@ -83,4 +94,6 @@
 * **AC-3 (Artifacts):** Artifact Viewer must render beside chat in a split view, supporting Preview and Code tabs, Copy, and Download.
 * **AC-4 (Security):** Generated HTML must run within a sandboxed iframe without access to parent storage or cookies.
 * **AC-5 (Persistence):** Sessions and messages must persist across reloads in PostgreSQL / SQLite.
-* **AC-6 (Resilience):** The app must run smoothly with Ollama, Claude, OpenAI, or in offline fallback mode.
+* **AC-6 (Resilience):** The app must run smoothly with Ollama, Claude, OpenAI, Gemini, or in offline fallback mode.
+* **AC-7 (Settings Management):** Studio must provide dynamic Ollama scanning, duplicate-checked custom model addition, live `.env` key protection, and dynamic database reconnection.
+* **AC-8 (Theme Consistency):** Light mode is the default with solid colors (zero gradients), supporting seamless dark mode toggling.

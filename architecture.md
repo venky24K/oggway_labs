@@ -41,7 +41,7 @@
 |                                                                      v                           |
 |   +------------------------------------------------------------------------------------------+   |
 |   |                                Flexible LLM Routing Layer                                |   |
-|   |   [Ollama (Local /:11434)]  <-->  [Anthropic Claude]  <-->  [OpenAI]  <--> [Fallback Engine] |   |
+|   |   [Ollama (Local /:11434)] <-> [Anthropic Claude] <-> [OpenAI] <-> [Gemini] <-> [Fallback] |   |
 |   +------------------------------------------------------------------------------------------+   |
 +--------------------------------------------------------------------------------------------------+
                                                   |
@@ -55,6 +55,13 @@
 ## 2. Database Schema & Persistence Design
 
 The persistence engine uses **SQLAlchemy 2.0 Async** with full PostgreSQL support (compatible with Supabase, Railway, Neon, or local Docker PG) paired with an automatic, zero-configuration **SQLite fallback** (`aiosqlite`).
+
+### Dynamic Engine Reinitialization (`reinit_database`)
+Unlike traditional static applications that bind the database engine at import, the assistant implements runtime dynamic database switching (`reinit_database(new_url: str = None)` in `database.py`):
+1. Safely disposes the existing connection pool.
+2. Creates the new asynchronous engine (`create_async_engine`).
+3. Executes a test connection and runs table schema migrations (`Base.metadata.create_all`).
+4. Automatically switches to local SQLite (`sqlite+aiosqlite:///data/lenny_assistant.db`) if the remote pooler is unreachable or network drops, ensuring zero downtime.
 
 ### 2.1 Entity Relationship Diagram (ERD)
 ```
@@ -149,19 +156,31 @@ CREATE INDEX idx_artifacts_session ON artifacts(session_id);
 * Emits clean, self-contained HTML5/CSS3/JS code blocks.
 * Tested against interactive models (e.g., PLG Funnel Simulator with real-time slider updates).
 
-### 4.3 Flexible Provider Fallback Chain
+### 4.3 Intent Classification Gate (Conversational vs. Domain RAG)
+* **Problem:** BM25 lexical ranking over 15,194 chunks on single-word or conversational queries like `"hi"` creates false positives against acronyms or casual transcript turns (e.g. Swiggy interview mentions of "HI").
+* **Solution:** An upstream deterministic intent classifier (`classify_intent`) parses user messages before calling the retriever:
+  - `greeting` ("hi", "hello", "good morning"): Bypasses BM25 search, returns a warm welcome detailing 303 episodes and sample product topics with `citations: []` and `grounded: false`.
+  - `closure` ("thanks", "thank you so much", "bye"): Bypasses retrieval, returns a polite 1-2 sentence closing.
+  - `meta` ("who are you", "what can you do"): Bypasses retrieval, explains 303 podcast episodes, YouTube deep-links, Ship 30 essays, and interactive artifacts.
+  - `out_of_scope` (weather, cooking, general trivia): Politely clarifies that knowledge is strictly focused on PM and growth, offering product topic pivots.
+  - `ship30` / `artifact` / `domain`: Runs full hybrid RAG with entity boosting and YouTube citations.
+* **Frontend Prompts Library:** Centralized in [`frontend/src/prompts.js`](file:///c:/Users/SRMAP/Documents/Github/oggway_labs/frontend/src/prompts.js) (and [`prompts.ts`](file:///c:/Users/SRMAP/Documents/Github/oggway_labs/frontend/src/prompts.ts)) to provide structured starter cards and playbook shortcuts.
+
+### 4.4 Flexible Provider Fallback Chain
 ```
 [User Request]
        │
        ▼
 [Check Requested Provider]
-       ├── "ollama" ───► Ollama HTTP Check (127.0.0.1:11434) ──[Healthy]──► Run Local Model (llama3.2)
-       │                                                     ──[Offline]─► Grounded Fallback Engine
-       ├── "anthropic" ► Check ANTHROPIC_API_KEY              ──[Valid]───► Run Claude 3.5 Sonnet
-       │                                                     ──[Missing]─► Grounded Fallback Engine
-       ├── "openai" ───► Check OPENAI_API_KEY                 ──[Valid]───► Run GPT-4o
-       │                                                     ──[Missing]─► Grounded Fallback Engine
-       └── "fallback" ─► Grounded Fallback Engine (Zero-dependency RAG synthesizer)
+       ├── "ollama" ────► Ollama HTTP Check (127.0.0.1:11434) ──[Healthy]──► Run Local Model (llama3.2)
+       │                                                      ──[Offline]─► Grounded Fallback Engine
+       ├── "anthropic" ─► Check ANTHROPIC_API_KEY              ──[Valid]───► Run Claude 3.5 Sonnet
+       │                                                      ──[Missing]─► Grounded Fallback Engine
+       ├── "openai" ────► Check OPENAI_API_KEY                 ──[Valid]───► Run GPT-4o
+       │                                                      ──[Missing]─► Grounded Fallback Engine
+       ├── "gemini" ────► Check GEMINI_API_KEY                 ──[Valid]───► Run Gemini 2.0/1.5 Flash
+       │                                                      ──[Missing]─► Grounded Fallback Engine
+       └── "fallback" ──► Grounded Fallback Engine (Zero-dependency RAG synthesizer)
 ```
 
 ---
@@ -183,7 +202,9 @@ CREATE INDEX idx_artifacts_session ON artifacts(session_id);
 | Method | Endpoint | Description | Sample Response |
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/health` | Service health, DB connection, Ollama status, indexed chunk counts. | `{"status": "healthy", "database_connected": true, "indexed_chunks": 15194}` |
-| `GET` | `/api/models` | List active provider, available models, and provider capabilities. | `{"current_provider": "ollama", "available_providers": ["ollama", "fallback"]}` |
+| `GET` | `/api/models` | List active provider, current model, detected Ollama models, and capabilities. | `{"current_provider": "ollama", "current_model": "llama3.2", "ollama_models": [...]}` |
+| `GET` | `/api/settings` | Retrieve active runtime configuration, masked keys, key presence, and DB type. | `{"provider": "ollama", "has_openai_key": false, "database_type": "postgresql"}` |
+| `POST` | `/api/settings` | Safely update runtime configuration, persist to `.env`, reinitialize DB. | `{"status": "success", "current_provider": "ollama", "current_model": "..."}` |
 | `GET` | `/api/sessions` | List all conversation sessions sorted by `updated_at`. | `[{"id": "...", "title": "Elena Verna PLG", "messages": [...]}]` |
 | `POST` | `/api/sessions` | Create a new session. | `{"id": "uuid", "title": "New Growth Conversation"}` |
 | `GET` | `/api/sessions/{id}` | Retrieve full conversation history and attached artifacts. | `{"id": "uuid", "messages": [...], "artifacts": [...]}` |

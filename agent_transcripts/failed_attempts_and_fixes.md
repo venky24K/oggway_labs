@@ -106,3 +106,54 @@ Refactored all schemas in `backend/app/schemas.py` and routers in `backend/app/a
 - `artifact.model_dump()`
 - `ArtifactResponse.model_validate(artifact_model)`
 Result: Zero deprecation warnings in test outputs.
+
+---
+
+### Incident 6: Unset API Key Overwrite During Settings Save
+
+#### The Symptom
+Clicking "Save & Apply Settings" in the Settings modal caused pre-existing `.env` cloud API keys (Gemini, OpenAI, Anthropic) to disappear from memory, reverting the active provider to fallback mode.
+
+#### Root Cause Analysis
+In `backend/app/main.py`, `POST /api/settings` evaluated:
+```python
+if payload.gemini_key is not None:
+    settings.GEMINI_API_KEY = payload.gemini_key
+```
+In the frontend modal, password fields initialized with empty strings (`geminiKey = ''`). Submitting the form sent `""` for untouched keys, unintentionally overwriting valid `.env` keys in memory and on disk.
+
+#### The Fix
+1. Modified `POST /api/settings` in `main.py` to only apply updates when `payload.<provider>_key.strip()` is non-empty.
+2. Added explicit `clear_<provider>_key` boolean flags for intentional key deletion.
+3. Implemented `GET /api/settings` with `has_<provider>_key` flags and `key_preview` masked strings so the frontend displays a green `Configured in .env (xxxx...xxxx)` badge.
+
+---
+
+### Incident 7: Static SQLAlchemy Async Engine Stagnation & Remote Pooler Drops
+
+#### The Symptom
+Updating `DATABASE_URL` in the UI updated the in-memory setting, but queries continued using the original connection pool until the server was restarted. Furthermore, if the network dropped or the Supabase pooler closed connections, the backend threw unhandled `OperationalError` exceptions.
+
+#### Root Cause Analysis
+SQLAlchemy async engines (`create_async_engine`) and session makers are module-level singletons in standard setups. Changing configuration at runtime does not alter existing connection pools.
+
+#### The Fix
+1. Implemented `reinit_database(new_url: str = None)` in `backend/app/database.py`:
+   - Disposes the active engine pool.
+   - Reconstructs the engine with the new URI.
+   - Tests connectivity with an immediate handshake.
+   - Runs table migrations (`Base.metadata.create_all`).
+2. Implemented graceful fallback: If the remote PostgreSQL handshake fails (e.g. corporate proxy or closed port 5432), the engine automatically initializes local SQLite (`sqlite+aiosqlite:///data/lenny_assistant.db`), ensuring zero downtime.
+
+---
+
+### Incident 8: Custom Ollama Model Reversion in React State
+
+#### The Symptom
+When a user added a custom Ollama model not present in the initial local scan, navigating back or triggering a re-render caused `App.jsx` to forcefully reset `currentModel` back to `modelStatus.ollama_models[0]`.
+
+#### Root Cause Analysis
+A validation `useEffect` in `App.jsx` verified whether `currentModel` was in `modelStatus.ollama_models`. If absent, it assumed the model was invalid and reset it.
+
+#### The Fix
+Updated the validation guard to check `localStorage.getItem('lenny_custom_models')`. If the active model exists in the user's custom models list, it is recognized as valid and retained.

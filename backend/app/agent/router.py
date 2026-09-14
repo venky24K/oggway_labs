@@ -3,6 +3,7 @@ Agent Router: Orchestrates session context, hybrid retrieval, skill routing,
 LLM provider execution, and database persistence.
 """
 
+import re
 import logging
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,15 @@ from backend.app.config import settings
 from backend.app.models import SessionModel, MessageModel, ArtifactModel
 from backend.app.schemas import ChatRequest, ChatResponse, CitationItem, ArtifactResponse
 from backend.app.rag.retriever import get_retriever
-from backend.app.agent.prompts import SYSTEM_GROUNDING_PROMPT, SHIP30_SYSTEM_PROMPT, ARTIFACT_SYSTEM_PROMPT
+from backend.app.agent.prompts import (
+    SYSTEM_GROUNDING_PROMPT,
+    SHIP30_SYSTEM_PROMPT,
+    ARTIFACT_SYSTEM_PROMPT,
+    GREETING_SYSTEM_PROMPT,
+    CLOSURE_SYSTEM_PROMPT,
+    META_SYSTEM_PROMPT,
+    OUT_OF_SCOPE_PROMPT
+)
 from backend.app.agent.skills.ship30 import build_ship30_prompt, generate_fallback_ship30_essay
 from backend.app.agent.skills.artifact_maker import extract_artifact_from_text, generate_interactive_growth_calculator_html
 from backend.app.agent.providers import (
@@ -30,6 +39,71 @@ class AgentRouter:
     def __init__(self):
         self.retriever = get_retriever()
         self.fallback_provider = GroundedFallbackProvider()
+
+    def classify_intent(self, message: str) -> str:
+        """
+        Classifies incoming user messages to route between:
+        - 'greeting': Casual hello/greetings (e.g. 'hi', 'hey there', 'hello')
+        - 'closure': Farewells and gratitude (e.g. 'thanks', 'bye', 'thank you')
+        - 'meta': Questions about the assistant's identity, features, or architecture
+        - 'out_of_scope': General non-product queries (weather, cooking, trivia)
+        - 'ship30': Requests for atomic essays (~1,250 words)
+        - 'artifact': Requests for interactive calculators, HTML widgets, or dashboards
+        - 'domain': Grounded product management & growth queries from Lenny's archives
+        """
+        msg = message.strip()
+        msg_lower = msg.lower()
+
+        # 1. Ship 30 Skill
+        if any(phrase in msg_lower for phrase in ["ship 30", "ship30", "atomic essay", "1250 words", "viral essay"]):
+            return "ship30"
+
+        # 2. Artifact Skill
+        if any(phrase in msg_lower for phrase in ["generate artifact", "create html", "growth calculator", "dashboard", "widget", "canvas", "interactive model"]):
+            return "artifact"
+
+        # 3. Greetings (Short conversational greetings or salutations)
+        greeting_patterns = [
+            r"^(hi+|hey+|hello+|howdy|sup|yo|greetings?|gm|gn)[!.\s]*$",
+            r"^(hi|hey|hello|good morning|good afternoon|good evening|howdy)\s*(there|lenny|assistant|bot)?[!.\s\?]*$",
+            r"^what'?s\s*up(\s*there)?[!.\s\?]*$",
+            r"^how('s| is)\s*it\s*going[!.\s\?]*$",
+            r"^how\s*are\s*you(\s*doing)?[!.\s\?]*$"
+        ]
+        if any(re.match(p, msg_lower) for p in greeting_patterns):
+            return "greeting"
+
+        # 4. Closures (Thanks & Goodbyes)
+        closure_patterns = [
+            r"^(thanks?|thank\s+you)(\s+(very\s+much|so\s+much|a\s+lot))?[!.\s]*$",
+            r"^(thx|cheers|appreciate\s+it|much\s+appreciated)[!.\s]*$",
+            r"^(bye|goodbye|see\s+(ya|you(\s+later)?)|cya|have\s+a\s+good\s+(day|one|night)|take\s+care)[!.\s]*$"
+        ]
+        if any(re.match(p, msg_lower) for p in closure_patterns):
+            return "closure"
+
+        # 5. Meta Inquiries (Capabilities, identity, architecture)
+        meta_triggers = [
+            "who are you", "what can you do", "what are you", "what is this app",
+            "tell me about yourself", "how do you work", "what do you do",
+            "what models do you support", "what is the lenny assistant"
+        ]
+        clean_msg = re.sub(r"[^\w\s]", "", msg_lower).strip()
+        if any(clean_msg == trigger or msg_lower.startswith(trigger) for trigger in meta_triggers):
+            return "meta"
+
+        # 6. Out-of-scope trivia / non-product inquiries
+        out_of_scope_patterns = [
+            r"^(what is the weather|weather in|how is the weather)",
+            r"^(what is the capital of|who is the president of|who won the)",
+            r"^(how (do|to) (make|cook|bake)|recipe for)",
+            r"^(tell me a joke|sing a song|write a poem about)"
+        ]
+        if any(re.search(p, msg_lower) for p in out_of_scope_patterns):
+            return "out_of_scope"
+
+        # 7. Default to domain RAG
+        return "domain"
 
     async def get_provider(self, requested_provider: Optional[str] = None, model: Optional[str] = None) -> Tuple[BaseLLMProvider, str]:
         """
@@ -78,7 +152,7 @@ class AgentRouter:
 
     async def process_chat(self, req: ChatRequest, db: AsyncSession) -> ChatResponse:
         """
-        End-to-end chat orchestration pipeline.
+        End-to-end chat orchestration pipeline with intent-based routing.
         """
         # 1. Resolve or Create Session
         if req.session_id:
@@ -103,37 +177,36 @@ class AgentRouter:
         db.add(user_msg)
         await db.flush()
 
-        # 3. Retrieve Context from Lenny's Transcripts
-        search_results = self.retriever.search(query=req.message, top_k=5)
-        context_str = self.retriever.format_context_for_prompt(search_results)
+        # 3. Classify Intent
+        intent = self.classify_intent(req.message)
+        is_ship30 = req.generate_ship30 or intent == "ship30"
+        is_artifact = req.generate_artifact or intent == "artifact"
+        is_conversational = intent in ["greeting", "closure", "meta", "out_of_scope"]
 
-        # Convert citations to Pydantic objects
-        citations = [
-            CitationItem(
-                chunk_id=r.get("chunk_id"),
-                guest=r.get("guest", "Unknown"),
-                title=r.get("title", "Episode"),
-                timestamp=r.get("timestamp", "00:00"),
-                start_seconds=r.get("start_seconds", 0),
-                youtube_url=r.get("youtube_url", ""),
-                snippet=r.get("snippet", ""),
-                score=r.get("score")
-            )
-            for r in search_results
-        ]
+        citations: List[CitationItem] = []
+        context_str = ""
 
-        # 4. Resolve Provider
+        # 4. Context Retrieval (ONLY execute for domain / podcast queries)
+        if not is_conversational:
+            search_results = self.retriever.search(query=req.message, top_k=5)
+            context_str = self.retriever.format_context_for_prompt(search_results)
+
+            citations = [
+                CitationItem(
+                    chunk_id=r.get("chunk_id"),
+                    guest=r.get("guest", "Unknown"),
+                    title=r.get("title", "Episode"),
+                    timestamp=r.get("timestamp", "00:00"),
+                    start_seconds=r.get("start_seconds", 0),
+                    youtube_url=r.get("youtube_url", ""),
+                    snippet=r.get("snippet", ""),
+                    score=r.get("score")
+                )
+                for r in search_results
+            ]
+
+        # 5. Resolve Provider
         provider, provider_label = await self.get_provider(req.provider, req.model)
-
-        # 5. Detect Skills / Intent
-        is_ship30 = req.generate_ship30 or any(
-            phrase in req.message.lower() 
-            for phrase in ["ship 30", "ship30", "atomic essay", "1250 words", "viral essay"]
-        )
-        is_artifact = req.generate_artifact or any(
-            phrase in req.message.lower() 
-            for phrase in ["generate artifact", "create html", "calculator", "dashboard", "widget", "canvas", "interactive model"]
-        )
 
         artifact_data: Optional[Dict[str, str]] = None
         assistant_content = ""
@@ -148,8 +221,39 @@ class AgentRouter:
         recent_messages = list(reversed(hist_result.scalars().all()))
         formatted_history = [{"role": m.role, "content": m.content} for m in recent_messages]
 
-        # 6. Execute Specific Skill or Standard Grounded RAG
-        if is_ship30:
+        # 6. Execute Specific Intent, Skill, or Grounded RAG
+        if is_conversational:
+            if isinstance(provider, GroundedFallbackProvider):
+                if intent == "greeting":
+                    assistant_content = "Hello! How can I help you with product management, growth strategy, or Lenny's Podcast insights today?"
+                elif intent == "closure":
+                    assistant_content = "You're very welcome! Let me know if you need anything else. Best of luck building!"
+                elif intent == "meta":
+                    assistant_content = (
+                        "I am **The Lenny Growth Assistant**, an AI advisor indexing insights from 300+ episodes of Lenny's Podcast. "
+                        "I can help you explore tactical product frameworks with timestamped citations, write Ship 30 atomic essays, "
+                        "or generate interactive growth models. What challenge are you working on?"
+                    )
+                else:  # out_of_scope
+                    assistant_content = (
+                        "I'm specialized in product management, growth strategy, and lessons from Lenny's Podcast archives. "
+                        "What product or growth challenge can I help you explore today?"
+                    )
+            else:
+                prompt_map = {
+                    "greeting": GREETING_SYSTEM_PROMPT,
+                    "closure": CLOSURE_SYSTEM_PROMPT,
+                    "meta": META_SYSTEM_PROMPT,
+                    "out_of_scope": OUT_OF_SCOPE_PROMPT,
+                }
+                selected_prompt = prompt_map.get(intent, GREETING_SYSTEM_PROMPT)
+                assistant_content = await provider.generate_response(
+                    system_prompt=selected_prompt,
+                    messages=formatted_history,
+                    context_str=""
+                )
+
+        elif is_ship30:
             if isinstance(provider, GroundedFallbackProvider):
                 citations_dict = [c.model_dump() for c in citations]
                 assistant_content = generate_fallback_ship30_essay(req.message, citations_dict)
