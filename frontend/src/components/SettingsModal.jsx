@@ -93,9 +93,7 @@ export default function SettingsModal({
   const [geminiModel, setGeminiModel] = useState('gemini-1.5-flash');
 
   // Database
-  const [databaseUrl, setDatabaseUrl] = useState(
-    'postgresql://postgres.cbanzhreccncemwwdpqh:Venky2427..@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres'
-  );
+  const [databaseUrl, setDatabaseUrl] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // Fetch settings from server on modal open
@@ -612,7 +610,7 @@ export default function SettingsModal({
                   <div className="local-instructions-heading">Ollama Setup Instructions</div>
                   <ol className="local-instructions-list">
                     <li>
-                      1. Download{' '}
+                      Download{' '}
                       <a
                         href="https://ollama.com/download"
                         target="_blank"
@@ -623,9 +621,9 @@ export default function SettingsModal({
                       </a>
                       .
                     </li>
-                    <li>2. Open your terminal.</li>
+                    <li>Open your terminal.</li>
                     <li>
-                      3. Run <code className="local-code">ollama pull your_model</code> to install a model.
+                      Run <code className="local-code">ollama pull your_model</code> to install a model.
                       <div className="local-subtext">
                         This app automatically detects locally running models and enables them.
                       </div>

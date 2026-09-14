@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from backend.app.database import Base
@@ -9,8 +9,8 @@ class SessionModel(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = Column(String(255), default="New Growth Conversation", nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     metadata_json = Column(JSON, default=dict)
 
     messages = relationship(
@@ -37,7 +37,7 @@ class MessageModel(Base):
     content = Column(Text, nullable=False)
     citations_json = Column(JSON, default=list)
     model_used = Column(String(100), default="ollama")
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     session = relationship("SessionModel", back_populates="messages")
 
@@ -50,6 +50,6 @@ class ArtifactModel(Base):
     title = Column(String(255), nullable=False)
     artifact_type = Column(String(50), default="markdown", nullable=False)  # "markdown", "html"
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     session = relationship("SessionModel", back_populates="artifacts")

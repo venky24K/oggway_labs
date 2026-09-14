@@ -13,7 +13,8 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from backend.app.config import settings
-from backend.app.database import get_db, init_db, using_sqlite, reinit_database
+from backend.app.database import get_db, init_db, reinit_database
+import backend.app.database as database
 from backend.app.models import SessionModel, MessageModel, ArtifactModel
 from backend.app.schemas import (
     SessionResponse,
@@ -79,7 +80,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
         "status": "healthy" if db_ok else "degraded",
         "app_name": settings.APP_NAME,
         "database_connected": db_ok,
-        "database_type": "sqlite" if using_sqlite else "postgresql",
+        "database_type": "sqlite" if database.using_sqlite else "postgresql",
         "ollama_available": ollama_ok,
         "indexed_episodes": len(retriever.catalog),
         "indexed_chunks": len(retriever.chunks)
@@ -121,7 +122,7 @@ async def get_models_status(endpoint: Optional[str] = None):
         current_model=active_model,
         available_providers=available,
         database_connected=True,
-        database_type="sqlite" if using_sqlite else "postgresql",
+        database_type="sqlite" if database.using_sqlite else "postgresql",
         indexed_episodes=len(retriever.catalog),
         indexed_chunks=len(retriever.chunks)
     )
@@ -135,6 +136,11 @@ def mask_api_key(key: Optional[str]) -> str:
     return f"{clean[:4]}...{clean[-4:]}"
 
 def persist_settings_to_env(updates: dict):
+    """Persists non-secret configuration to .env. API keys are kept in-memory only."""
+    SECRET_KEYS = {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "DATABASE_URL"}
+    safe_updates = {k: v for k, v in updates.items() if k not in SECRET_KEYS}
+    if not safe_updates:
+        return
     env_path = ".env"
     if not os.path.exists(env_path):
         return
@@ -148,13 +154,13 @@ def persist_settings_to_env(updates: dict):
             stripped = line.strip()
             if stripped and not stripped.startswith("#") and "=" in stripped:
                 k = stripped.split("=", 1)[0].strip()
-                if k in updates:
-                    new_lines.append(f"{k}={updates[k]}\n")
+                if k in safe_updates:
+                    new_lines.append(f"{k}={safe_updates[k]}\n")
                     updated_keys.add(k)
                     continue
             new_lines.append(line)
 
-        for k, v in updates.items():
+        for k, v in safe_updates.items():
             if k not in updated_keys and v is not None:
                 new_lines.append(f"{k}={v}\n")
 
@@ -208,7 +214,7 @@ async def get_settings():
         "openai_key_preview": mask_api_key(settings.OPENAI_API_KEY),
         "anthropic_key_preview": mask_api_key(settings.ANTHROPIC_API_KEY),
         "gemini_key_preview": mask_api_key(settings.GEMINI_API_KEY),
-        "database_type": "sqlite" if using_sqlite else "postgresql"
+        "database_type": "sqlite" if database.using_sqlite else "postgresql"
     }
 
 @app.post(f"{settings.API_PREFIX}/settings", tags=["System"])
@@ -303,7 +309,7 @@ async def update_settings(payload: SettingsUpdatePayload):
         "current_provider": settings.DEFAULT_PROVIDER,
         "current_model": active_model,
         "available_providers": available,
-        "database_type": "sqlite" if using_sqlite else "postgresql"
+        "database_type": "sqlite" if database.using_sqlite else "postgresql"
     }
 
 # ----------------- Session Endpoints ----------------- #

@@ -1,10 +1,13 @@
 import json
 import re
 import math
+import logging
 import difflib
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from rank_bm25 import BM25Okapi
+
+logger = logging.getLogger("lenny_assistant.retriever")
 
 class HybridRetriever:
     """
@@ -28,7 +31,7 @@ class HybridRetriever:
     def load_index(self):
         """Loads chunks and initializes the BM25 search index."""
         if not self.index_path.exists():
-            print(f"Warning: Index path {self.index_path} not found.")
+            logger.warning("Index path %s not found.", self.index_path)
             return
 
         with open(self.index_path, "r", encoding="utf-8") as f:
@@ -52,7 +55,7 @@ class HybridRetriever:
         if corpus:
             self.bm25 = BM25Okapi(corpus)
             self._is_ready = True
-            print(f"HybridRetriever initialized with {len(self.chunks)} chunks across {len(self.catalog)} episodes.")
+            logger.info("HybridRetriever initialized with %d chunks across %d episodes.", len(self.chunks), len(self.catalog))
 
     def search(
         self, 

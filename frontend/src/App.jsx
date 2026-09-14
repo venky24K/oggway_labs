@@ -10,11 +10,11 @@ import {
   Code2,
   Copy,
   Check,
-  Radio,
-  Share2,
   Layers,
   ChevronDown
 } from 'lucide-react';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 import Sidebar from './components/Sidebar';
 import ArtifactViewer from './components/ArtifactViewer';
@@ -56,6 +56,7 @@ export default function App() {
   });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const lastArtifactRef = useRef(null);
 
   const messagesEndRef = useRef(null);
   const modelDropdownRef = useRef(null);
@@ -286,6 +287,7 @@ export default function App() {
 
       // If an artifact was returned, automatically open Artifact Viewer!
       if (data.artifact) {
+        lastArtifactRef.current = data.artifact;
         setActiveArtifact(data.artifact);
       }
     } catch (e) {
@@ -412,7 +414,7 @@ export default function App() {
             {activeArtifact && (
               <button
                 className="btn-action-chip accent"
-                onClick={() => setActiveArtifact(activeArtifact ? null : activeArtifact)}
+                onClick={() => setActiveArtifact(activeArtifact ? null : lastArtifactRef.current)}
               >
                 <Layers size={13} />
                 <span>Artifact Viewer</span>
@@ -481,13 +483,9 @@ export default function App() {
 
                     <div className={`bubble ${m.role}`}>
                       <div
-                        style={{ whiteSpace: 'pre-wrap' }}
+                        className="markdown-content"
                         dangerouslySetInnerHTML={{
-                          __html: m.content
-                            .replace(/### (.*?)\n/g, '<h3 style="margin: 10px 0 6px; color: var(--accent-primary);">$1</h3>')
-                            .replace(/#### (.*?)\n/g, '<h4 style="margin: 8px 0 4px; color: var(--accent-secondary);">$1</h4>')
-                            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                          __html: DOMPurify.sanitize(marked.parse(m.content || ''))
                         }}
                       />
 

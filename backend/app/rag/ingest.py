@@ -2,8 +2,11 @@ import os
 import re
 import json
 import yaml
+import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger("lenny_assistant.ingest")
 
 def parse_time_to_seconds(time_str: str) -> int:
     """Converts HH:MM:SS or MM:SS to seconds."""
@@ -210,7 +213,7 @@ def build_index_from_directory(
     all_chunks = []
     episodes_catalog = []
 
-    print(f"Processing {len(episode_dirs)} episodes from {episodes_dir}...")
+    logger.info("Processing %d episodes from %s...", len(episode_dirs), episodes_dir)
 
     for ep_dir in episode_dirs:
         transcript_file = ep_dir / "transcript.md"
@@ -236,7 +239,7 @@ def build_index_from_directory(
             chunks = chunk_turns(turns, metadata)
             all_chunks.extend(chunks)
         except Exception as e:
-            print(f"Error processing {ep_dir.name}: {e}")
+            logger.error("Error processing %s: %s", ep_dir.name, e)
 
     index_data = {
         "total_episodes": len(episodes_catalog),
@@ -250,8 +253,8 @@ def build_index_from_directory(
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(index_data, f, ensure_ascii=False)
 
-    print(f"Successfully generated index with {len(all_chunks)} chunks across {len(episodes_catalog)} episodes.")
-    print(f"Saved to {output_index_path}")
+    logger.info("Successfully generated index with %d chunks across %d episodes.", len(all_chunks), len(episodes_catalog))
+    logger.info("Saved to %s", output_index_path)
     return index_data
 
 if __name__ == "__main__":
