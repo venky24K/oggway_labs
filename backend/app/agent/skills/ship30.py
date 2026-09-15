@@ -56,7 +56,16 @@ def generate_fallback_ship30_essay(query: str, citations: List[Dict[str, Any]]) 
     quote_1 = core_quotes[0] if len(core_quotes) > 0 else f"Focus relentlessly on the single input metric you actually control."
     quote_2 = core_quotes[1] if len(core_quotes) > 1 else f"Most startups don't fail from starvation; they fail from indigestion."
 
-    essay = f"""# The {guest_name} Playbook: How To Master {query.title()} (Without Burning Out Your Team)
+    import re
+    clean_topic = re.sub(r"(?i)^(turn|write|create|generate)\s+", "", query).strip()
+    clean_topic = re.sub(r"(?i)\s+(into\s+an?\s+~?1,250-word\s+ship\s*30.*)$", "", clean_topic).strip()
+    clean_topic = re.sub(r"(?i)\s+(into\s+a\s+ship\s*30.*)$", "", clean_topic).strip()
+    clean_topic = re.sub(r"(?i)^(an?\s+ship\s*30.*essay\s+on\s+)", "", clean_topic).strip()
+    clean_topic = re.sub(r"(?i)\s+based\s+on\s+lenny.*$", "", clean_topic).strip()
+    if not clean_topic:
+        clean_topic = query
+
+    essay = f"""# The {guest_name} Playbook: How To Master {clean_topic.title()} (Without Burning Out Your Team)
 
 Most product leaders are executing the wrong growth playbook.
 

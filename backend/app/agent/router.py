@@ -5,6 +5,7 @@ LLM provider execution, and database persistence.
 
 import re
 import logging
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -327,9 +328,11 @@ class AgentRouter:
             await db.flush()
             artifact_response = ArtifactResponse.model_validate(artifact_model)
 
-        # 9. Update Session Title if First Interaction
+        # 9. Update Session Title if First Interaction and touch updated_at
+        session_obj.updated_at = datetime.now(timezone.utc)
         if len(recent_messages) <= 2:
-            session_obj.title = req.message[:50].strip() + ("..." if len(req.message) > 50 else "")
+            first_line = req.message.split("\n")[0].strip()
+            session_obj.title = first_line[:50].strip() + ("..." if len(first_line) > 50 else "")
 
         await db.commit()
 

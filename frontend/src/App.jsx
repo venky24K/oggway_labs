@@ -303,8 +303,8 @@ export default function App() {
 
       if (!currentSessionId) {
         setCurrentSessionId(data.session_id);
-        fetchSessions();
       }
+      fetchSessions();
 
       const assistantMsg = {
         id: data.message_id,
