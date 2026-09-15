@@ -40,4 +40,5 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Cloud Run injects the PORT environment variable (default 8080)
-CMD ["sh", "-c", "exec uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# Use --timeout 0 (no worker timeout) since the RAG index loads in background
+CMD ["sh", "-c", "exec uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8080} --timeout-keep-alive 120"]

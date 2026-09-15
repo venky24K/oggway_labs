@@ -38,8 +38,15 @@ logger = logging.getLogger("lenny_assistant.router")
 
 class AgentRouter:
     def __init__(self):
-        self.retriever = get_retriever()
+        self._retriever = None
         self.fallback_provider = GroundedFallbackProvider()
+
+    @property
+    def retriever(self):
+        """Lazy-load retriever on first access to avoid blocking startup."""
+        if self._retriever is None:
+            self._retriever = get_retriever()
+        return self._retriever
 
     def classify_intent(self, message: str) -> str:
         """
