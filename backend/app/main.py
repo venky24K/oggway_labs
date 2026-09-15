@@ -37,11 +37,19 @@ logger = logging.getLogger("lennyos.main")
 async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle."""
     logger.info("Initializing LennyOS backend...")
-    # 1. Initialize DB tables
-    await init_db()
+    import asyncio
+    # 1. Initialize DB tables with a fast 3-second timeout so server ALWAYS binds to port
+    try:
+        await asyncio.wait_for(init_db(), timeout=3.0)
+    except Exception as e:
+        logger.warning(f"Database initialization timed out or failed ({e}). Proceeding with startup.")
+
     # 2. Warm up RAG index
-    retriever = get_retriever()
-    logger.info(f"Loaded retriever with {len(retriever.chunks)} transcript chunks.")
+    try:
+        retriever = get_retriever()
+        logger.info(f"Loaded retriever with {len(retriever.chunks)} transcript chunks.")
+    except Exception as e:
+        logger.warning(f"Retriever warmup warning: {e}")
     yield
     logger.info("Shutting down backend...")
 

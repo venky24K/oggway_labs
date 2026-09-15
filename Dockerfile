@@ -30,8 +30,14 @@ COPY backend/ backend/
 COPY data/ data/
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
-# Cloud Run automatically sets PORT (defaults to 8080)
+# Ensure permissions on data directory for SQLite fallback
+RUN chmod -R 777 /app/data
+
+# Environment configuration for Cloud Run
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH="/app"
 ENV PORT=8080
 EXPOSE 8080
 
-CMD exec uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT}
+# Cloud Run injects the PORT environment variable (default 8080)
+CMD ["sh", "-c", "exec uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

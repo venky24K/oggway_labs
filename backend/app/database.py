@@ -34,6 +34,10 @@ else:
         "postgresql+asyncpg://" in db_url or "postgresql+psycopg_async://" in db_url
     ):
         db_url = db_url.replace("postgresql://", "postgresql+psycopg_async://", 1)
+    
+    if "supabase.com" in db_url and "sslmode" not in db_url:
+        delimiter = "&" if "?" in db_url else "?"
+        db_url += f"{delimiter}sslmode=require"
 
 try:
     if using_sqlite:
@@ -48,6 +52,7 @@ try:
             pool_pre_ping=True,
             pool_size=10,
             max_overflow=20,
+            connect_args={"connect_timeout": 3},
             echo=False
         )
     AsyncSessionLocal = async_sessionmaker(
@@ -162,12 +167,17 @@ async def reinit_database(new_url: str = None) -> bool:
     ):
         target_url = target_url.replace("postgresql://", "postgresql+psycopg_async://", 1)
 
+    if "supabase.com" in target_url and "sslmode" not in target_url:
+        delimiter = "&" if "?" in target_url else "?"
+        target_url += f"{delimiter}sslmode=require"
+
     try:
         new_engine = create_async_engine(
             target_url,
             pool_pre_ping=True,
             pool_size=10,
             max_overflow=20,
+            connect_args={"connect_timeout": 3},
             echo=False
         )
         async with new_engine.begin() as conn:
