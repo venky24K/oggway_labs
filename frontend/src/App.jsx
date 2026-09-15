@@ -501,6 +501,7 @@ export default function App() {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onNavigateLanding={() => setCurrentView('landing')}
+        onOpenArtifacts={() => setCurrentView('artifacts')}
       />
 
       {/* Mobile Sidebar Backdrop */}
@@ -535,35 +536,6 @@ export default function App() {
               <p>Product & Growth Intelligence</p>
             </div>
           </div>
-
-          {/* Top Navigation Tabs (Overview | Assistant | Growth Blog | Artifacts) */}
-          <nav className="header-nav-tabs" aria-label="Main Navigation">
-            <button
-              type="button"
-              className={`header-nav-tab ${currentView === 'landing' ? 'active' : ''}`}
-              onClick={() => setCurrentView('landing')}
-              title="Return to Landing Page Overview"
-            >
-              <Home size={14} />
-              <span>Overview</span>
-            </button>
-            <button
-              type="button"
-              className={`header-nav-tab ${currentView === 'assistant' ? 'active' : ''}`}
-              onClick={() => setCurrentView('assistant')}
-            >
-              <MessageSquare size={14} />
-              <span>Assistant</span>
-            </button>
-            <button
-              type="button"
-              className={`header-nav-tab ${currentView === 'artifacts' ? 'active' : ''}`}
-              onClick={() => setCurrentView('artifacts')}
-            >
-              <Layers size={14} />
-              <span>Artifacts</span>
-            </button>
-          </nav>
 
           <div className="header-right">
             {/* Model Selector Dropdown (No green dot, just model name + chevron, ellipsis if large) */}
@@ -671,6 +643,7 @@ export default function App() {
           <ArtifactsGallery
             artifacts={userArtifacts}
             isLoading={false}
+            onBackToChat={() => setCurrentView('assistant')}
             onOpenArtifact={(art) => {
               lastArtifactRef.current = art;
               setActiveArtifact(art);

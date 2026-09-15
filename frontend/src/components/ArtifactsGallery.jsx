@@ -7,7 +7,8 @@ import {
   ShieldCheck,
   Inbox,
   Loader2,
-  Clock
+  Clock,
+  ArrowLeft
 } from 'lucide-react';
 
 // Prompts to help a user get started — these are suggestions, not artifacts that
@@ -74,7 +75,8 @@ export default function ArtifactsGallery({
   isLoading = false,
   onOpenArtifact,
   onLaunchArtifact,
-  onDiscussInChat
+  onDiscussInChat,
+  onBackToChat
 }) {
   const [searchQuery, setSearchQuery] = React.useState('');
 
@@ -164,9 +166,22 @@ export default function ArtifactsGallery({
       `}</style>
 
       <div className="gallery-hero">
-        <div className="gallery-hero-badge">
-          <Layers size={13} />
-          <span>Sandboxed artifacts</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
+          <div className="gallery-hero-badge" style={{ margin: 0 }}>
+            <Layers size={13} />
+            <span>Sandboxed artifacts</span>
+          </div>
+          {onBackToChat && (
+            <button
+              type="button"
+              className="btn-action-chip"
+              onClick={onBackToChat}
+              style={{ padding: '6px 12px', fontSize: '0.82rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <ArrowLeft size={14} />
+              <span>Back to Chat</span>
+            </button>
+          )}
         </div>
         <h1 className="gallery-title">Your artifacts</h1>
         <p className="gallery-desc">
