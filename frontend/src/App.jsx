@@ -28,7 +28,6 @@ import ArtifactViewer from './components/ArtifactViewer';
 import CitationBadge from './components/CitationBadge';
 import SettingsModal from './components/SettingsModal';
 import BrandLogo from './components/BrandLogo';
-import BlogHub from './components/BlogHub';
 import ArtifactsGallery from './components/ArtifactsGallery';
 import LandingPage from './components/LandingPage';
 import { WELCOME_QUICK_CARDS } from './prompts';
@@ -69,7 +68,7 @@ export default function App() {
     try {
       const params = new URLSearchParams(window.location.search);
       const paramView = params.get('view');
-      if (paramView && ['landing', 'assistant', 'blog', 'artifacts'].includes(paramView)) {
+      if (paramView && ['landing', 'assistant', 'artifacts'].includes(paramView)) {
         return paramView;
       }
       return localStorage.getItem('lenny_active_view') || 'landing';
@@ -458,9 +457,6 @@ export default function App() {
               handleSendMessage({ text: query });
             }
           }}
-          onOpenBlog={(articleId) => {
-            setCurrentView('blog');
-          }}
           onOpenArtifacts={() => {
             setCurrentView('artifacts');
           }}
@@ -558,14 +554,6 @@ export default function App() {
             >
               <MessageSquare size={14} />
               <span>Assistant</span>
-            </button>
-            <button
-              type="button"
-              className={`header-nav-tab ${currentView === 'blog' ? 'active' : ''}`}
-              onClick={() => setCurrentView('blog')}
-            >
-              <BookOpen size={14} />
-              <span>Growth Blog</span>
             </button>
             <button
               type="button"
@@ -677,20 +665,6 @@ export default function App() {
             </button>
           </div>
         </header>
-
-        {/* Growth Blog View */}
-        {currentView === 'blog' && (
-          <BlogHub
-            onDiscussInChat={(prompt) => {
-              setCurrentView('assistant');
-              handleSendMessage({ text: prompt });
-            }}
-            onLaunchCalculator={(prompt) => {
-              setCurrentView('assistant');
-              handleSendMessage({ text: prompt, generate_artifact: true });
-            }}
-          />
-        )}
 
         {/* Artifacts & Calculators Gallery View */}
         {currentView === 'artifacts' && (

@@ -16,7 +16,13 @@ class HybridRetriever:
     """
 
     def __init__(self, index_path: str = "data/transcripts_index.json"):
-        self.index_path = Path(index_path)
+        candidates = [
+            Path(index_path),
+            Path(__file__).resolve().parents[3] / index_path,
+            Path.cwd() / index_path,
+            Path.cwd().parent / index_path,
+        ]
+        self.index_path = next((p for p in candidates if p.exists()), Path(index_path))
         self.chunks: List[Dict[str, Any]] = []
         self.catalog: List[Dict[str, Any]] = []
         self.bm25: Optional[BM25Okapi] = None

@@ -19,7 +19,35 @@ import {
   Target,
   Compass
 } from 'lucide-react';
-import { BLOG_ARTICLES } from './BlogHub';
+export const ESSAY_PROMPT_TEMPLATES = [
+  {
+    id: 'essay-elena-verna',
+    category: 'Product-Led Growth',
+    title: 'The Modern Product-Led Sales Flywheel',
+    guest: 'Elena Verna',
+    guestRole: 'Head of Growth at Dropbox & Amplitude',
+    desc: 'When self-serve ends and enterprise sales begins: how to structure product-qualified accounts and usage triggers.',
+    prompt: "Write a Ship 30 for 30 executive atomic essay on Elena Verna's Product-Led Sales and growth loop playbook."
+  },
+  {
+    id: 'essay-brian-chesky',
+    category: 'Founder Mode & Org Design',
+    title: 'Founder Mode: Eliminating Bureaucracy & Delegation Traps',
+    guest: 'Brian Chesky',
+    guestRole: 'Co-founder & CEO, Airbnb',
+    desc: 'Deep dive into un-delegating, cross-functional orchestration, and how Airbnb dismantled the traditional product management matrix.',
+    prompt: "Write a Ship 30 for 30 executive atomic essay analyzing Brian Chesky's Founder Mode management system."
+  },
+  {
+    id: 'essay-rahul-vohra',
+    category: 'Product-Market Fit',
+    title: 'The Engine of Product-Market Fit',
+    guest: 'Rahul Vohra',
+    guestRole: 'Founder & CEO, Superhuman',
+    desc: 'The quantitative formula to measure, track, and systematically increase your product-market fit engine before scaling growth.',
+    prompt: "Write a Ship 30 for 30 executive atomic essay breaking down Rahul Vohra's Superhuman 40% PMF engine."
+  }
+];
 
 const LANDING_FEATURES = [
   {
@@ -70,7 +98,6 @@ const CURATED_PROMPTS = [
 
 export default function LandingPage({
   onEnterWorkspace,
-  onOpenBlog,
   onOpenArtifacts,
   onSelectPrompt
 }) {
@@ -854,9 +881,12 @@ export default function LandingPage({
           <button
             type="button"
             className="landing-nav-link"
-            onClick={() => onOpenBlog()}
+            onClick={() => {
+              const el = document.getElementById('essays-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
           >
-            Growth Essays
+            Ship 30 Essays
           </button>
           <button
             type="button"
@@ -931,10 +961,11 @@ export default function LandingPage({
             }}
             onClick={() => {
               setMobileMenuOpen(false);
-              onOpenBlog();
+              const el = document.getElementById('essays-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
             }}
           >
-            Growth Essays & Playbooks
+            Ship 30 Essays
           </button>
           <button
             type="button"
@@ -1001,10 +1032,13 @@ export default function LandingPage({
           <button
             type="button"
             className="landing-btn-hero-secondary"
-            onClick={() => onOpenBlog()}
+            onClick={() => {
+              const el = document.getElementById('essays-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
           >
             <BookOpen size={16} />
-            <span>Explore Growth Essays</span>
+            <span>Generate Ship 30 Essays</span>
           </button>
 
           <button
@@ -1161,47 +1195,49 @@ export default function LandingPage({
         </div>
       </section>
 
-      {/* Curated Growth Essays Preview Grid */}
-      <section className="landing-essays-section">
+      {/* Ship 30 for 30 Executive Essay Generator Section */}
+      <section id="essays-section" className="landing-essays-section">
         <div className="section-header-center">
-          <div className="section-badge">Ship 30 for 30 Format</div>
-          <h2 className="section-title">Curated Executive Essays</h2>
+          <div className="section-badge">Ship 30 for 30 Generator</div>
+          <h2 className="section-title">Synthesize ~1,250-Word Executive Essays</h2>
           <p className="section-subtitle">
-            Dense podcast discussions distilled into razor-sharp, publication-ready atomic essays with viral hooks.
+            Turn multi-hour podcast discussions into publication-ready atomic essays featuring irresistible hooks, 1-3-1 cadence, and actionable 48-hour checklists.
           </p>
         </div>
 
         <div className="essays-preview-grid">
-          {BLOG_ARTICLES.slice(0, 3).map((art) => (
-            <div key={art.id} className="essay-preview-card">
+          {ESSAY_PROMPT_TEMPLATES.map((tpl) => (
+            <div key={tpl.id} className="essay-preview-card">
               <div>
                 <div className="essay-meta-top">
-                  <span className="essay-category-badge">{art.category}</span>
-                  <span className="essay-read-time">{art.readTime}</span>
+                  <span className="essay-category-badge">{tpl.category}</span>
+                  <span className="essay-read-time">~1,250 words</span>
                 </div>
-                <h3 className="essay-card-h3">{art.title}</h3>
-                <div className="essay-guest-info">Framework by <strong>{art.guest}</strong> ({art.guestRole})</div>
+                <h3 className="essay-card-h3">{tpl.title}</h3>
+                <div className="essay-guest-info">Framework by <strong>{tpl.guest}</strong> ({tpl.guestRole})</div>
                 <p style={{ fontSize: '0.86rem', color: '#64748B', lineHeight: 1.5, margin: 0 }}>
-                  {art.excerpt}
+                  {tpl.desc}
                 </p>
               </div>
 
               <div className="essay-card-actions">
                 <button
                   type="button"
-                  className="btn-essay-action"
-                  onClick={() => onOpenBlog(art.id)}
+                  className="btn-essay-action primary"
+                  onClick={() => onEnterWorkspace(tpl.prompt)}
+                  title="Generate a grounded ~1,250-word atomic essay via AI"
                 >
-                  <BookOpen size={13} />
-                  <span>Read Essay</span>
+                  <Sparkles size={13} />
+                  <span>Generate Essay</span>
                 </button>
                 <button
                   type="button"
-                  className="btn-essay-action primary"
-                  onClick={() => onEnterWorkspace(`Write an executive tactical brief based on ${art.guest}'s framework on ${art.title}`)}
+                  className="btn-essay-action"
+                  onClick={() => onEnterWorkspace(`Explain ${tpl.guest}'s framework on ${tpl.title} based on Lenny's Podcast archives`)}
+                  title="Discuss this framework with LennyOS"
                 >
                   <MessageSquare size={13} />
-                  <span>Discuss in Chat</span>
+                  <span>Ask in Chat</span>
                 </button>
               </div>
             </div>
@@ -1259,9 +1295,12 @@ export default function LandingPage({
           <button
             type="button"
             style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', fontSize: '0.82rem' }}
-            onClick={() => onOpenBlog()}
+            onClick={() => {
+              const el = document.getElementById('essays-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
           >
-            Growth Essays
+            Ship 30 Essays
           </button>
           <button
             type="button"
