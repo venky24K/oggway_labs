@@ -117,6 +117,17 @@ export default function App() {
     } catch {}
   }, [theme]);
 
+  // Adjust body scrollability for marketing landing view vs app workspace
+  useEffect(() => {
+    if (currentView === 'landing') {
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.overflow = 'auto';
+    } else {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    }
+  }, [currentView]);
+
   // Load initial model status and sessions
   useEffect(() => {
     fetchModelStatus();

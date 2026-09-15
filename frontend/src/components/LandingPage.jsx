@@ -19,7 +19,6 @@ import {
   Target,
   Compass
 } from 'lucide-react';
-import BrandLogo from './BrandLogo';
 import { BLOG_ARTICLES } from './BlogHub';
 import { GALLERY_ARTIFACTS } from './ArtifactsGallery';
 
@@ -36,7 +35,7 @@ const LANDING_FEATURES = [
     accent: '#82FFCF',
     accentSoft: '#EAFFF6',
     title: 'Executable Growth Artifacts',
-    body: 'Interactive calculators, PLG simulators, and PMF engines that render natively side-by-side in your workspace. Isolated inside enterprise sandboxes.'
+    body: 'Interactive calculators, PLG simulators, and PMF engines that render natively side-by-side with your chat. Isolated inside enterprise sandboxes.'
   },
   {
     icon: BookOpen,
@@ -85,9 +84,8 @@ export default function LandingPage({
 
         .landing-page-root {
           position: relative;
-          width: 100vw;
-          height: 100vh;
-          overflow-y: auto;
+          width: 100%;
+          min-height: 100vh;
           overflow-x: hidden;
           background: #FFFFFF;
           color: #14161A;
@@ -810,8 +808,36 @@ export default function LandingPage({
 
       {/* Sticky Glass Header */}
       <header className="landing-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <BrandLogo size="medium" />
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          title="LennyOS by Oggway Labs"
+        >
+          <img
+            src="/logo.png"
+            alt="LennyOS by Oggway Labs"
+            style={{
+              height: '42px',
+              width: 'auto',
+              objectFit: 'contain',
+              display: 'block'
+            }}
+          />
+          <span
+            style={{
+              fontSize: '0.74rem',
+              fontWeight: 600,
+              color: '#475569',
+              background: '#F1F5F9',
+              padding: '3px 10px',
+              borderRadius: '12px',
+              border: '1px solid #E2E8F0',
+              letterSpacing: '-0.01em',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            by Oggway Labs
+          </span>
         </div>
 
         {/* Desktop Navigation Links */}
@@ -858,8 +884,8 @@ export default function LandingPage({
             className="landing-btn-pill"
             onClick={() => onEnterWorkspace()}
           >
-            <span>Enter Workspace</span>
-            <ArrowRight size={15} />
+            <MessageSquare size={15} />
+            <span>Start Chat</span>
           </button>
 
           <button
@@ -939,7 +965,8 @@ export default function LandingPage({
               onEnterWorkspace();
             }}
           >
-            <span>Enter Workspace</span>
+            <MessageSquare size={16} />
+            <span>Start Chat</span>
             <ArrowRight size={16} />
           </button>
         </div>
@@ -967,8 +994,8 @@ export default function LandingPage({
             className="landing-btn-hero-primary"
             onClick={() => onEnterWorkspace()}
           >
-            <LayoutDashboard size={18} />
-            <span>Launch LennyOS Workspace</span>
+            <MessageSquare size={18} />
+            <span>Start Chat</span>
             <ArrowRight size={16} />
           </button>
 
@@ -1002,7 +1029,7 @@ export default function LandingPage({
               <div className="showcase-dot" style={{ background: '#10B981' }} />
             </div>
             <div className="showcase-address-bar">
-              lennyos.oggwaylabs.internal / workspace / elena-verna-plg
+              lennyos.oggwaylabs.internal / chat / elena-verna-plg
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', color: '#10B981', fontWeight: 600 }}>
               <ShieldCheck size={14} />
@@ -1082,7 +1109,7 @@ export default function LandingPage({
                 onClick={() => onEnterWorkspace('Generate an interactive Growth & Retention Model calculator HTML widget based on Elena Verna\'s framework')}
               >
                 <Zap size={14} />
-                <span>Simulate Live in Workspace</span>
+                <span>Simulate in Chat</span>
               </button>
             </div>
           </div>
@@ -1217,7 +1244,8 @@ export default function LandingPage({
             className="btn-cta-white"
             onClick={() => onEnterWorkspace()}
           >
-            <span>Enter LennyOS Workspace</span>
+            <MessageSquare size={16} />
+            <span>Start Chat</span>
             <ArrowRight size={16} />
           </button>
         </div>
@@ -1248,7 +1276,7 @@ export default function LandingPage({
             style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', fontSize: '0.82rem' }}
             onClick={() => onEnterWorkspace()}
           >
-            Workspace
+            Chat
           </button>
         </div>
       </footer>
