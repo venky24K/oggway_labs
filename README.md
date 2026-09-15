@@ -152,17 +152,17 @@ If Ollama is not installed or running, **the application will NOT crash**. The a
 ## 🧪 Testing & Verification
 
 ### 1. Automated Test Suite (Pytest)
-Run the 13 automated unit and integration tests (executes in ~1.5 seconds):
+Run the 19 automated unit and integration tests (executes in ~1.8 seconds):
 ```bash
 pytest backend/tests -v
 # or
 python -m pytest backend/tests -v
 ```
-**Coverage (13/13 Passing):**
-* `test_api.py`: Health check, provider listing, live runtime `/api/settings` GET/POST contracts, session CRUD, chat RAG grounding contract.
-* `test_rag.py`: BM25 indexing, Brian Chesky search, timestamp metadata, out-of-scope question handling.
-* `test_skills.py`: Ship 30 for 30 essay length & visual structure, HTML artifact parsing, sandboxing constraints.
-* `test_persistence.py`: Multi-turn session message retention, artifact session linking.
+**Coverage (19/19 Passing):**
+* `test_api.py` (10 tests): Health check, provider listing, live runtime `/api/settings` GET/POST contracts, session CRUD lifecycle, cascade deletion of sessions with messages and artifacts, grounded chat RAG responses, intent classification gates (greetings, closures, meta queries), and message thumbs up/down feedback lifecycle.
+* `test_rag.py` (4 tests): BM25 indexing and search, Brian Chesky entity query, timestamp & snippet metadata verification, out-of-scope question handling, and fuzzy guest typo matching (e.g. "Elana Verna", "Brian Cheski").
+* `test_skills.py` (3 tests): Ship 30 for 30 essay length (~1,250 words) & visual structure (hooks, 1-3-1 cadence, headings, takeaways), HTML artifact parsing from LLM markdown fences, and interactive growth calculator generation with sandboxing constraints.
+* `test_persistence.py` (2 tests): Multi-turn session message retention and artifact session persistence.
 
 ### 2. Live End-to-End System Check
 Run the live integration verification script:
@@ -199,7 +199,7 @@ Treating AI-generated HTML as untrusted is critical. The Lenny Growth Assistant 
 | 4 | **Design Spec** | [design.md](design.md) | UI/UX principles, design system tokens, states, accessibility. |
 | 5 | **Architecture** | [architecture.md](architecture.md) | DB schema, REST contracts, RAG pipeline, LLM routing, security. |
 | 6 | **Agent Transcripts** | [agent_transcripts/](agent_transcripts/) | Engineering transcripts & post-mortem of failed attempts and fixes. |
-| 7 | **Tests** | [backend/tests/](backend/tests/) & [tests/manual_test_plan.md](tests/manual_test_plan.md) | 13 automated pytest tests + manual UI verification plan. |
+| 7 | **Tests** | [backend/tests/](backend/tests/) & [tests/manual_test_plan.md](tests/manual_test_plan.md) | 19 automated pytest tests + manual UI verification plan. |
 | 8 | **Demo Video Script** | [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | 2–3 minute video presentation script and walkthrough instructions. |
 
 ---

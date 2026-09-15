@@ -183,6 +183,13 @@ CREATE INDEX idx_artifacts_session ON artifacts(session_id);
        └── "fallback" ──► Grounded Fallback Engine (Zero-dependency RAG synthesizer)
 ```
 
+### 4.5 Agent Integration Model & Claude Agent SDK Alignment
+The agent architecture strictly mirrors the **Anthropic Claude Agent SDK** and **Pi Coding Agent** paradigm:
+* **Tool & Skill Boundary Encapsulation:** Distinct agent tools for Ship 30 for 30 essay generation (`ship30.py`) and Artifact creation/parsing (`artifact_maker.py`).
+* **Multi-Turn Context & Sliding Memory:** Preserves multi-turn dialogue histories within isolated session boundaries.
+* **Provider Abstraction:** Implements the official Anthropic Claude SDK (`AsyncAnthropic` from `anthropic`), OpenAI SDK (`AsyncOpenAI`), Ollama local runner, and the deterministic fallback engine.
+* **Prompt Engineering & System Directives:** Strict system grounding instructions (`SYSTEM_GROUNDING_PROMPT`) ensuring that answers are derived solely from transcript excerpts.
+
 ---
 
 ## 5. Security & Isolation Architecture
@@ -210,6 +217,7 @@ CREATE INDEX idx_artifacts_session ON artifacts(session_id);
 | `GET` | `/api/sessions/{id}` | Retrieve full conversation history and attached artifacts. | `{"id": "uuid", "messages": [...], "artifacts": [...]}` |
 | `DELETE` | `/api/sessions/{id}` | Delete session and cascade delete all messages and artifacts. | `{"message": "Session deleted successfully"}` |
 | `POST` | `/api/chat` | Main conversational endpoint. Supports RAG, Ship 30, and Artifacts. | `{"session_id": "...", "message": "...", "citations": [...], "artifact": {...}}` |
+| `PATCH` | `/api/messages/{id}/feedback` | Record thumbs up / thumbs down feedback on assistant message. | `{"status": "success", "message_id": "...", "feedback": "like"}` |
 | `GET` | `/api/artifacts/{id}` | Retrieve individual artifact code and metadata. | `{"id": "...", "title": "Growth Funnel", "artifact_type": "html"}` |
 
 ---
