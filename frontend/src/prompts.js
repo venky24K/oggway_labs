@@ -1,5 +1,5 @@
 /**
- * Prompts and Quick Starters Library for The Lenny Growth Assistant
+ * Prompts and Quick Starters Library for LennyOS
  * Provides curated prompts for onboarding, quick playbook cards, and conversational starters.
  */
 
@@ -21,14 +21,14 @@ export const WELCOME_QUICK_CARDS = [
   {
     id: "ship30-plg-essay",
     tag: "Ship 30 for 30 • Atomic Essay",
-    text: "⚡ Turn PLG retention loops into an ~1,250-word Ship 30 for 30 essay",
+    text: "Turn PLG retention loops into an ~1,250-word Ship 30 for 30 essay",
     query: "Write a Ship 30 for 30 essay on product-led growth retention loops based on Lenny's Podcast",
     options: { generate_ship30: true }
   },
   {
     id: "interactive-growth-model",
     tag: "Interactive Artifact • Viewer",
-    text: "📊 Generate an interactive Growth & Retention Model calculator widget",
+    text: "Generate an interactive Growth & Retention Model calculator widget",
     query: "Generate an interactive Growth & Retention Model calculator HTML artifact",
     options: { generate_artifact: true }
   }
@@ -71,19 +71,19 @@ export const PLAYBOOK_SHORTCUTS = [
 
 export const CONVERSATIONAL_STARTERS = [
   {
-    label: "👋 Introduction",
+    label: "Introduction",
     query: "Hi, who are you and what can you help me with?"
   },
   {
-    label: "🛠️ Capabilities",
+    label: "Capabilities",
     query: "What can you do, and how are Lenny's podcast episodes indexed?"
   },
   {
-    label: "🎯 Founder Mode",
+    label: "Founder Mode",
     query: "Explain Brian Chesky's concept of Founder Mode"
   },
   {
-    label: "📈 Growth Model",
+    label: "Growth Model",
     query: "Build an interactive ARR and retention model artifact"
   }
 ];

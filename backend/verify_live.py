@@ -60,7 +60,7 @@ def test_live_system():
     res_fe = client.get("http://localhost:5173/")
     print("Frontend Root Status:", res_fe.status_code)
     assert res_fe.status_code == 200
-    assert "The Lenny Growth Assistant" in res_fe.text
+    assert "LennyOS" in res_fe.text
 
     print("\n[SUCCESS] ALL LIVE VERIFICATION CHECKS PASSED SUCCESSFULLY!")
 

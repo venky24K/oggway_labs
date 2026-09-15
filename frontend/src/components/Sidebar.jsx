@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, MessageSquare, Trash2, Sparkles, BookOpen, BarChart2, X, Check } from 'lucide-react';
+import BrandLogo from './BrandLogo';
 import { PLAYBOOK_SHORTCUTS } from '../prompts';
 
 export default function Sidebar({
@@ -10,7 +11,8 @@ export default function Sidebar({
   onDeleteSession,
   onSelectQuickPrompt,
   isOpen,
-  onClose
+  onClose,
+  onNavigateLanding
 }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
@@ -52,16 +54,16 @@ export default function Sidebar({
   return (
     <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       {/* Header */}
-      <div className="sidebar-header">
-        <div className="logo-badge">
-          <div className="logo-icon">🎙️</div>
-          <div>
-            <div>Lenny Assistant</div>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-              Growth & Product Intelligence
-            </div>
-          </div>
-        </div>
+      <div
+        className="sidebar-header"
+        onClick={() => {
+          if (onNavigateLanding) onNavigateLanding();
+          if (onClose) onClose();
+        }}
+        style={{ cursor: 'pointer' }}
+        title="Return to Landing Page Overview"
+      >
+        <BrandLogo size="medium" />
 
         {/* Mobile close button */}
         {isOpen && (

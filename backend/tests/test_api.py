@@ -150,7 +150,7 @@ async def test_chat_meta_intent(client):
     data = response.json()
     assert data["grounded"] is False
     assert len(data["citations"]) == 0
-    assert "Lenny Growth Assistant" in data["message"]
+    assert "LennyOS" in data["message"]
 
 @pytest.mark.asyncio
 async def test_message_feedback_lifecycle(client):

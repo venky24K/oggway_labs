@@ -13,7 +13,12 @@ import {
   Layers,
   ChevronDown,
   ThumbsUp,
-  ThumbsDown
+  ThumbsDown,
+  Radio,
+  User,
+  MessageSquare,
+  Sliders,
+  Home
 } from 'lucide-react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -22,6 +27,10 @@ import Sidebar from './components/Sidebar';
 import ArtifactViewer from './components/ArtifactViewer';
 import CitationBadge from './components/CitationBadge';
 import SettingsModal from './components/SettingsModal';
+import BrandLogo from './components/BrandLogo';
+import BlogHub from './components/BlogHub';
+import ArtifactsGallery from './components/ArtifactsGallery';
+import LandingPage from './components/LandingPage';
 import { WELCOME_QUICK_CARDS } from './prompts';
 
 const QUICK_MODELS = [
@@ -56,6 +65,25 @@ export default function App() {
       return 'light';
     }
   });
+  const [currentView, setCurrentView] = useState(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const paramView = params.get('view');
+      if (paramView && ['landing', 'assistant', 'blog', 'artifacts'].includes(paramView)) {
+        return paramView;
+      }
+      return localStorage.getItem('lenny_active_view') || 'landing';
+    } catch {
+      return 'landing';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('lenny_active_view', currentView);
+    } catch {}
+  }, [currentView]);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
   const lastArtifactRef = useRef(null);
@@ -216,6 +244,7 @@ export default function App() {
   };
 
   const loadSession = async (sessionId) => {
+    setCurrentView('assistant');
     setCurrentSessionId(sessionId);
     try {
       const res = await fetch(`/api/sessions/${sessionId}`);
@@ -237,6 +266,7 @@ export default function App() {
   };
 
   const handleNewChat = () => {
+    setCurrentView('assistant');
     setCurrentSessionId(null);
     setMessages([]);
     setActiveArtifact(null);
@@ -271,6 +301,7 @@ export default function App() {
     generate_ship30 = false,
     generate_artifact = false
   } = {}) => {
+    setCurrentView('assistant');
     const query = text.trim();
     if (!query || loading) return;
 
@@ -330,7 +361,7 @@ export default function App() {
         ...prev,
         {
           role: 'assistant',
-          content: `⚠️ Error connecting to Lenny Growth Assistant: ${e.message}. Please check that the server is running or switch to the Grounded Fallback Engine in Settings.`,
+          content: `Error connecting to LennyOS: ${e.message}. Please verify the backend service is active or select the Grounded Fallback Engine in Settings.`,
           citations_json: [],
           created_at: new Date().toISOString()
         }
@@ -379,6 +410,51 @@ export default function App() {
     }
   };
 
+  // Render Signature Marketing Landing Page (Matching Canvas Architecture)
+  if (currentView === 'landing') {
+    return (
+      <>
+        <LandingPage
+          onEnterWorkspace={(query) => {
+            setCurrentView('assistant');
+            if (query) {
+              handleSendMessage({ text: query });
+            }
+          }}
+          onOpenBlog={(articleId) => {
+            setCurrentView('blog');
+          }}
+          onOpenArtifacts={() => {
+            setCurrentView('artifacts');
+          }}
+          onSelectPrompt={(prompt) => {
+            setCurrentView('assistant');
+            handleSendMessage({ text: prompt });
+          }}
+        />
+
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => {
+            setIsSettingsOpen(false);
+            fetchModelStatus();
+          }}
+          modelStatus={modelStatus}
+          currentProvider={currentProvider}
+          onChangeProvider={setCurrentProvider}
+          currentModel={currentModel}
+          onChangeModel={setCurrentModel}
+          initialTab={settingsInitialTab}
+          onSaveConfig={(cfg) => {
+            if (cfg.provider) setCurrentProvider(cfg.provider);
+            if (cfg.model) setCurrentModel(cfg.model);
+            fetchModelStatus();
+          }}
+        />
+      </>
+    );
+  }
+
   return (
     <div className="app-container">
       {/* Left Sidebar */}
@@ -391,6 +467,7 @@ export default function App() {
         onSelectQuickPrompt={(prompt, opts) => handleSendMessage({ text: prompt, ...(opts || {}) })}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onNavigateLanding={() => setCurrentView('landing')}
       />
 
       {/* Mobile Sidebar Backdrop */}
@@ -415,11 +492,53 @@ export default function App() {
             >
               <Menu size={18} />
             </button>
-            <div className="header-title-wrapper">
-              <h2>The Lenny Growth Assistant</h2>
-              <p>Grounded in 303 episodes & 15,000+ transcript segments</p>
+            <div
+              className="header-title-wrapper"
+              onClick={() => setCurrentView('landing')}
+              title="Return to Landing Page Overview"
+              style={{ cursor: 'pointer' }}
+            >
+              <h2>LennyOS</h2>
+              <p>Product & Growth Intelligence</p>
             </div>
           </div>
+
+          {/* Top Navigation Tabs (Overview | Assistant | Growth Blog | Artifacts) */}
+          <nav className="header-nav-tabs" aria-label="Main Navigation">
+            <button
+              type="button"
+              className={`header-nav-tab ${currentView === 'landing' ? 'active' : ''}`}
+              onClick={() => setCurrentView('landing')}
+              title="Return to Landing Page Overview"
+            >
+              <Home size={14} />
+              <span>Overview</span>
+            </button>
+            <button
+              type="button"
+              className={`header-nav-tab ${currentView === 'assistant' ? 'active' : ''}`}
+              onClick={() => setCurrentView('assistant')}
+            >
+              <MessageSquare size={14} />
+              <span>Assistant</span>
+            </button>
+            <button
+              type="button"
+              className={`header-nav-tab ${currentView === 'blog' ? 'active' : ''}`}
+              onClick={() => setCurrentView('blog')}
+            >
+              <BookOpen size={14} />
+              <span>Growth Blog</span>
+            </button>
+            <button
+              type="button"
+              className={`header-nav-tab ${currentView === 'artifacts' ? 'active' : ''}`}
+              onClick={() => setCurrentView('artifacts')}
+            >
+              <Layers size={14} />
+              <span>Artifacts</span>
+            </button>
+          </nav>
 
           <div className="header-right">
             {/* Model Selector Dropdown (No green dot, just model name + chevron, ellipsis if large) */}
@@ -522,20 +641,51 @@ export default function App() {
           </div>
         </header>
 
+        {/* Growth Blog View */}
+        {currentView === 'blog' && (
+          <BlogHub
+            onDiscussInChat={(prompt) => {
+              setCurrentView('assistant');
+              handleSendMessage({ text: prompt });
+            }}
+            onLaunchCalculator={(prompt) => {
+              setCurrentView('assistant');
+              handleSendMessage({ text: prompt, generate_artifact: true });
+            }}
+          />
+        )}
+
+        {/* Artifacts & Calculators Gallery View */}
+        {currentView === 'artifacts' && (
+          <ArtifactsGallery
+            onLaunchArtifact={(prompt) => {
+              setCurrentView('assistant');
+              handleSendMessage({ text: prompt, generate_artifact: true });
+            }}
+            onDiscussInChat={(prompt) => {
+              setCurrentView('assistant');
+              handleSendMessage({ text: prompt });
+            }}
+          />
+        )}
+
         {/* Workspace Split: Chat Pane + Side-by-side Artifact Viewer */}
-        <div className="workspace-split">
-          {/* Chat Stream Pane */}
-          <div className={`chat-pane ${activeArtifact ? 'with-artifact' : ''}`}>
-            <div className="messages-container">
-              {messages.length === 0 ? (
-                <div className="welcome-hero">
-                  <div className="hero-icon">🎙️</div>
-                  <h1 className="hero-title">Welcome to The Lenny Growth Assistant</h1>
-                  <p className="hero-desc">
-                    Ask tactical product and growth questions grounded exclusively in Lenny Rachitsky's
-                    podcast archives. Generate viral Ship 30 for 30 essays, interactive growth models, and
-                    executive playbooks.
-                  </p>
+        {currentView === 'assistant' && (
+          <div className="workspace-split">
+            {/* Chat Stream Pane */}
+            <div className={`chat-pane ${activeArtifact ? 'with-artifact' : ''}`}>
+              <div className="messages-container">
+                {messages.length === 0 ? (
+                  <div className="welcome-hero">
+                    <div className="hero-icon">
+                      <Radio size={28} color="var(--accent-primary)" />
+                    </div>
+                    <h1 className="hero-title">Welcome to LennyOS</h1>
+                    <p className="hero-desc">
+                      Ask tactical product and growth questions grounded exclusively in Lenny Rachitsky's
+                      podcast archives. Generate viral Ship 30 for 30 essays, interactive growth models, and
+                      executive playbooks.
+                    </p>
 
                   <div className="quick-prompts-grid">
                     {WELCOME_QUICK_CARDS.map((card) => (
@@ -559,7 +709,9 @@ export default function App() {
                 messages.map((m, idx) => (
                   <div key={idx} className={`message-row ${m.role}`}>
                     {m.role === 'assistant' && (
-                      <div className="avatar assistant">🎙️</div>
+                      <div className="avatar assistant">
+                        <Radio size={14} />
+                      </div>
                     )}
 
                     <div className={`bubble ${m.role}`}>
@@ -704,7 +856,9 @@ export default function App() {
                     </div>
 
                     {m.role === 'user' && (
-                      <div className="avatar user">👤</div>
+                      <div className="avatar user">
+                        <User size={14} />
+                      </div>
                     )}
                   </div>
                 ))
@@ -712,7 +866,9 @@ export default function App() {
 
               {loading && (
                 <div className="message-row assistant">
-                  <div className="avatar assistant">🎙️</div>
+                  <div className="avatar assistant">
+                    <Radio size={14} />
+                  </div>
                   <div className="bubble assistant" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Sparkles size={16} className="animate-spin" color="var(--accent-primary)" />
                     <span>Searching Lenny's transcripts and synthesizing grounded response...</span>
@@ -767,6 +923,7 @@ export default function App() {
             />
           )}
         </div>
+        )}
       </div>
 
       {/* Settings & Configuration Modal */}

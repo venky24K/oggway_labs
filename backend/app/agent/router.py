@@ -234,7 +234,7 @@ class AgentRouter:
                     assistant_content = "You're very welcome! Let me know if you need anything else. Best of luck building!"
                 elif intent == "meta":
                     assistant_content = (
-                        "I am **The Lenny Growth Assistant**, an AI advisor indexing insights from 300+ episodes of Lenny's Podcast. "
+                        "I am **LennyOS**, an AI product & growth intelligence platform indexing insights from 300+ episodes of Lenny's Podcast. "
                         "I can help you explore tactical product frameworks with timestamped citations, write Ship 30 atomic essays, "
                         "or generate interactive growth models. What challenge are you working on?"
                     )

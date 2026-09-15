@@ -1,5 +1,5 @@
 """
-FastAPI Main Application for The Lenny Growth Assistant
+FastAPI Main Application for LennyOS
 """
 
 import os
@@ -31,12 +31,12 @@ from backend.app.agent.router import agent_router
 from backend.app.agent.providers import OllamaProvider
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("lenny_assistant.main")
+logger = logging.getLogger("lennyos.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle."""
-    logger.info("Initializing The Lenny Growth Assistant backend...")
+    logger.info("Initializing LennyOS backend...")
     # 1. Initialize DB tables
     await init_db()
     # 2. Warm up RAG index

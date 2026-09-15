@@ -4,7 +4,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # App Info
-    APP_NAME: str = "The Lenny Growth Assistant"
+    APP_NAME: str = "LennyOS"
     API_PREFIX: str = "/api"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
