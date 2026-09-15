@@ -1,0 +1,41 @@
+# =========================================================
+# Google Cloud Build Configuration
+# Deploys "The Lenny Growth Assistant" directly to Cloud Run
+# =========================================================
+
+steps:
+  # 1. Build unified production container
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/lenny-assistant:$COMMIT_SHA', '-t', 'gcr.io/$PROJECT_ID/lenny-assistant:latest', '.']
+
+  # 2. Push image to Google Container Registry / Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/lenny-assistant:latest']
+
+  # 3. Deploy to Google Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'lenny-assistant'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/lenny-assistant:latest'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '1Gi'
+      - '--cpu'
+      - '1'
+      - '--port'
+      - '8080'
+
+images:
+  - 'gcr.io/$PROJECT_ID/lenny-assistant:latest'
+  - 'gcr.io/$PROJECT_ID/lenny-assistant:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
