@@ -20,7 +20,6 @@ import {
   Compass
 } from 'lucide-react';
 import { BLOG_ARTICLES } from './BlogHub';
-import { GALLERY_ARTIFACTS } from './ArtifactsGallery';
 
 const LANDING_FEATURES = [
   {

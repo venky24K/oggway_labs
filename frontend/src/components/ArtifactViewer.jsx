@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Eye, Code, Copy, Download, X, Maximize2, Minimize2, ShieldCheck, Check } from 'lucide-react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -6,15 +6,51 @@ import DOMPurify from 'dompurify';
 export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggleExpand, theme = 'light' }) {
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' | 'code'
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
+  const copyTimerRef = useRef(null);
 
-  // Reset tab to preview when viewing a new artifact
+  // Clear copy timer on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
+  // Reset tab and states whenever a different artifact is loaded
   useEffect(() => {
     setActiveTab('preview');
-  }, [artifact?.title, artifact?.content]);
+    setCopied(false);
+    setCopyError(false);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+  }, [artifact?.id, artifact?.title]);
+
+  // Keyboard accessibility: ESC key collapses expanded view or closes viewer
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isExpanded) {
+          onToggleExpand?.();
+        } else {
+          onClose?.();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isExpanded, onClose, onToggleExpand]);
 
   if (!artifact) return null;
 
   const { title = 'Artifact', artifact_type = 'markdown', content = '' } = artifact;
+
+  // Normalize and clean outer markdown code fences if inadvertently included by an LLM
+  const cleanContent = useMemo(() => {
+    const raw = (content || '').trim();
+    return raw.replace(/^```(?:html|markdown|xml|javascript)?\s*\n([\s\S]*?)\n```\s*$/i, '$1');
+  }, [content]);
+
+  // Format type for display badge
+  const formattedTypeBadge = artifact_type === 'html' ? 'HTML Widget' : artifact_type === 'markdown' ? 'Markdown Document' : (artifact_type || 'Artifact').toUpperCase();
 
   // Prepare safe isolated srcDoc for HTML artifacts
   const buildIsolatedHtmlDoc = (rawHtml = '') => {
@@ -22,10 +58,14 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
     const bg = isDark ? '#090d16' : '#ffffff';
     const fg = isDark ? '#f8fafc' : '#0f172a';
 
-    // Inject Content Security Policy permitting trusted CDNs for interactive charts & styles
+    // Inject Content Security Policy permitting trusted CDNs for interactive charts & styles.
+    // frame-src/form-action are explicitly denied on top of the sandbox attribute below, so a
+    // generated artifact can't nest another frame or submit a form even if script-src is abused.
     const cspMeta = `
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <meta http-equiv="Content-Security-Policy" 
-            content="default-src 'self' 'unsafe-inline' data:; script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; img-src * data: blob:; connect-src 'none'; object-src 'none'; base-uri 'none';">
+            content="default-src 'self' 'unsafe-inline' data:; script-src 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; style-src 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; img-src * data: blob:; connect-src 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none';">
     `;
 
     const themeStyle = `
@@ -34,23 +74,25 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: ${bg}; color: ${fg}; }
       </style>
     `;
+    const headInjection = `${cspMeta}${themeStyle}`;
 
-    // Ensure proper document structure if incomplete
-    if (rawHtml.includes('<html') || rawHtml.includes('<!DOCTYPE')) {
-      if (rawHtml.includes('<head>')) {
-        return rawHtml.replace('<head>', `<head>${cspMeta}${themeStyle}`);
+    const hasDoctypeOrHtml = /<!DOCTYPE/i.test(rawHtml) || /<html[\s>]/i.test(rawHtml);
+
+    if (hasDoctypeOrHtml) {
+      if (/<head[\s>]/i.test(rawHtml)) {
+        return rawHtml.replace(/<head[^>]*>/i, (headTag) => `${headTag}${headInjection}`);
       }
-      return `${cspMeta}${themeStyle}${rawHtml}`;
+      if (/<html[^>]*>/i.test(rawHtml)) {
+        return rawHtml.replace(/<html[^>]*>/i, (htmlTag) => `${htmlTag}<head>${headInjection}</head>`);
+      }
+      return rawHtml.replace(/<!DOCTYPE[^>]*>/i, (doctype) => `${doctype}<head>${headInjection}</head>`);
     }
 
     return `
       <!DOCTYPE html>
       <html>
         <head>
-          ${cspMeta}
-          ${themeStyle}
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          ${headInjection}
         </head>
         <body style="padding: 24px;">
           ${rawHtml}
@@ -59,15 +101,31 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
     `;
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(content || '');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    if (!cleanContent.trim()) return;
+    try {
+      await navigator.clipboard.writeText(cleanContent);
+      setCopyError(false);
+      setCopied(true);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Copy to clipboard failed:', err);
+      setCopyError(true);
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopyError(false), 2000);
+    }
+  };
+
+  const FILE_TYPES = {
+    html: { extension: 'html', mime: 'text/html' },
+    markdown: { extension: 'md', mime: 'text/markdown' }
   };
 
   const handleDownload = () => {
-    const extension = artifact_type === 'html' ? 'html' : 'md';
-    const blob = new Blob([content || ''], { type: artifact_type === 'html' ? 'text/html' : 'text/markdown' });
+    if (!cleanContent.trim()) return;
+    const { extension, mime } = FILE_TYPES[artifact_type] || { extension: 'txt', mime: 'text/plain' };
+    const blob = new Blob([cleanContent], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -82,19 +140,46 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
     URL.revokeObjectURL(url);
   };
 
+  // Safe sanitized markdown with external link security
+  const sanitizedMarkdown = useMemo(() => {
+    if (artifact_type !== 'markdown' || !cleanContent) return '';
+    try {
+      const parsed = marked.parse(cleanContent, { gfm: true, breaks: true });
+      return DOMPurify.sanitize(parsed, {
+        ADD_ATTR: ['target', 'rel']
+      });
+    } catch {
+      return DOMPurify.sanitize(cleanContent);
+    }
+  }, [cleanContent, artifact_type]);
+
   return (
     <div className={`artifact-pane ${isExpanded ? 'expanded' : ''}`}>
+      <style>{`
+        .artifact-empty-state {
+          height: 100%;
+          min-height: 200px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--text-muted, #8b909c);
+          font-size: 0.9rem;
+        }
+      `}</style>
+
       {/* Header bar */}
       <div className="artifact-header">
         <div className="artifact-title-wrapper">
-          <span className="artifact-type-badge">{artifact_type}</span>
+          <span className="artifact-type-badge">{formattedTypeBadge}</span>
           <h3 className="artifact-title" title={title}>{title}</h3>
         </div>
 
         {/* View Mode Tabs */}
-        <div className="artifact-tabs">
+        <div className="artifact-tabs" role="tablist" aria-label="Artifact view mode">
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'preview'}
             className={`artifact-tab-btn ${activeTab === 'preview' ? 'active' : ''}`}
             onClick={() => setActiveTab('preview')}
           >
@@ -102,6 +187,8 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={activeTab === 'code'}
             className={`artifact-tab-btn ${activeTab === 'code' ? 'active' : ''}`}
             onClick={() => setActiveTab('code')}
           >
@@ -111,16 +198,48 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
 
         {/* Action Controls */}
         <div className="artifact-actions">
-          <button type="button" className="btn-icon" onClick={handleCopy} title="Copy code">
-            {copied ? <Check size={14} color="var(--accent-emerald)" /> : <Copy size={14} />}
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={handleCopy}
+            disabled={!cleanContent.trim()}
+            title={copyError ? 'Copy failed' : 'Copy code'}
+            aria-label={copyError ? 'Copy failed' : 'Copy code'}
+          >
+            {copied ? (
+              <Check size={14} color="var(--accent-emerald)" />
+            ) : copyError ? (
+              <X size={14} color="var(--accent-rose, #dc2626)" />
+            ) : (
+              <Copy size={14} />
+            )}
           </button>
-          <button type="button" className="btn-icon" onClick={handleDownload} title="Download file">
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={handleDownload}
+            disabled={!cleanContent.trim()}
+            title="Download file"
+            aria-label="Download file"
+          >
             <Download size={14} />
           </button>
-          <button type="button" className="btn-icon" onClick={onToggleExpand} title={isExpanded ? "Collapse" : "Maximize"}>
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={onToggleExpand}
+            title={isExpanded ? 'Collapse' : 'Maximize'}
+            aria-label={isExpanded ? 'Collapse artifact viewer' : 'Maximize artifact viewer'}
+          >
             {isExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
-          <button type="button" className="btn-icon" onClick={onClose} title="Close viewer">
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={onClose}
+            title="Close viewer"
+            aria-label="Close artifact viewer"
+          >
             <X size={14} />
           </button>
         </div>
@@ -128,40 +247,36 @@ export default function ArtifactViewer({ artifact, onClose, isExpanded, onToggle
 
       {/* Main Artifact Frame */}
       <div className="artifact-content-frame">
-        {activeTab === 'preview' ? (
+        {!cleanContent.trim() ? (
+          <div className="artifact-empty-state">
+            <p>This artifact has no content yet.</p>
+          </div>
+        ) : activeTab === 'preview' ? (
           artifact_type === 'html' ? (
             <iframe
               title={title}
               className="artifact-iframe"
-              srcDoc={buildIsolatedHtmlDoc(content)}
-              /* Strict Sandbox:
-                 - 'allow-scripts' enables interactive calculators and JS widgets.
-                 - NO 'allow-same-origin': Blocks access to parent cookies, localStorage, and DOM.
-                 - NO 'allow-top-navigation': Blocks malicious redirects.
-                 - NO 'allow-forms': Blocks phishing submissions.
-              */
+              srcDoc={buildIsolatedHtmlDoc(cleanContent)}
               sandbox="allow-scripts"
             />
           ) : (
             <div className="artifact-markdown-view">
               <div
                 className="markdown-content"
-                dangerouslySetInnerHTML={{
-                  __html: DOMPurify.sanitize(marked.parse(content || ''))
-                }}
+                dangerouslySetInnerHTML={{ __html: sanitizedMarkdown }}
               />
             </div>
           )
         ) : (
           <pre className="artifact-code-view">
-            <code>{content}</code>
+            <code>{cleanContent}</code>
           </pre>
         )}
       </div>
 
       {/* Security Status Bar */}
       <div className="security-notice">
-        <span style={{ display: 'flex', alignContent: 'center', gap: 6 }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <ShieldCheck size={14} color="var(--accent-emerald)" />
           <strong>Sandboxed Execution:</strong> Isolated origin, no cookies/storage access, safe CSP boundary.
         </span>

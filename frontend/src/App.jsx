@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Send,
   Sparkles,
@@ -298,6 +298,32 @@ export default function App() {
       console.error('Failed to delete session', e);
     }
   };
+
+  // Aggregate and sort real artifacts generated across chat sessions
+  const userArtifacts = useMemo(() => {
+    const list = [];
+    sessions.forEach((s) => {
+      if (s.artifacts && Array.isArray(s.artifacts)) {
+        s.artifacts.forEach((a) => {
+          list.push({ ...a, session_id: s.id, session_title: s.title });
+        });
+      }
+    });
+    messages.forEach((m) => {
+      if (m.artifact && m.artifact.id) {
+        list.push({ ...m.artifact, session_id: currentSessionId, session_title: 'Current Session' });
+      }
+    });
+    const seen = new Set();
+    const unique = [];
+    for (const item of list) {
+      if (item.id && !seen.has(item.id)) {
+        seen.add(item.id);
+        unique.push(item);
+      }
+    }
+    return unique.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  }, [sessions, messages, currentSessionId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -669,6 +695,13 @@ export default function App() {
         {/* Artifacts & Calculators Gallery View */}
         {currentView === 'artifacts' && (
           <ArtifactsGallery
+            artifacts={userArtifacts}
+            isLoading={false}
+            onOpenArtifact={(art) => {
+              lastArtifactRef.current = art;
+              setActiveArtifact(art);
+              setCurrentView('assistant');
+            }}
             onLaunchArtifact={(prompt) => {
               setCurrentView('assistant');
               handleSendMessage({ text: prompt, generate_artifact: true });

@@ -3,122 +3,286 @@ import {
   Code2,
   Sliders,
   Layers,
-  Sparkles,
-  ArrowUpRight,
   MessageSquare,
-  CheckCircle2,
   ShieldCheck,
-  Zap,
-  Activity
+  Inbox,
+  Loader2,
+  Clock
 } from 'lucide-react';
 
-export const GALLERY_ARTIFACTS = [
+// Prompts to help a user get started — these are suggestions, not artifacts that
+// already exist. Nothing here claims a capability until the assistant actually
+// generates it; the real gallery below is driven entirely by the `artifacts` prop.
+export const STARTER_PROMPTS = [
   {
-    id: 'elena-plg-simulator',
-    title: 'PLG & Retention Funnel Simulator',
+    id: 'plg-simulator',
     guest: 'Elena Verna',
-    type: 'Interactive HTML/JS Widget',
     category: 'Product-Led Growth',
-    desc: 'Simulate user acquisition, onboarding conversion, natural habit frequency, and viral loops with live sliders and dynamic retention projection charts.',
-    features: ['Dynamic conversion sliders', 'Real-time cohort retention curve', 'Sales-assist threshold indicator'],
-    prompt: 'Generate an interactive Growth & Retention Model calculator HTML widget based on Elena Verna\'s framework'
+    label: 'PLG & retention funnel simulator',
+    prompt: "Generate an interactive Growth & Retention Model calculator HTML widget based on Elena Verna's framework"
   },
   {
-    id: 'superhuman-pmf-scorecard',
-    title: 'Superhuman 40% PMF Engine Scorecard',
+    id: 'pmf-scorecard',
     guest: 'Rahul Vohra',
-    type: 'Interactive HTML/JS Widget',
     category: 'Product-Market Fit',
-    desc: 'Calculate your product-market fit score based on the Sean Ellis protocol. Segments high-expectation customers and computes 50/50 roadmap resource allocation.',
-    features: ['40% benchmark scoring', 'HXC user segment filter', 'Roadmap allocation balancer'],
-    prompt: 'Generate an interactive Product-Market Fit Engine scorecard calculator based on Rahul Vohra\'s Superhuman framework'
+    label: 'Superhuman 40% PMF scorecard',
+    prompt: "Generate an interactive Product-Market Fit Engine scorecard calculator based on Rahul Vohra's Superhuman framework"
   },
   {
-    id: 'founder-mode-prd-canvas',
-    title: 'Founder Mode Product Review Canvas',
+    id: 'founder-mode-canvas',
     guest: 'Brian Chesky',
-    type: 'Markdown & HTML Blueprint',
     category: 'Leadership & Org Design',
-    desc: 'A unified single-roadmap review canvas eliminating divisional silos. Structured for executive weekly reviews and bi-annual launch synchronization.',
-    features: ['Integrated single-roadmap structure', 'Craft review rubric (PM + PMM + Design)', 'Release readiness checklist'],
-    prompt: 'Generate a comprehensive Founder Mode Product Review Canvas template inspired by Brian Chesky\'s Airbnb playbook'
+    label: 'Founder Mode product review canvas',
+    prompt: "Generate a Founder Mode Product Review Canvas template inspired by Brian Chesky's Airbnb playbook"
   },
   {
-    id: 'growth-accounting-analyzer',
-    title: 'Growth Accounting & Churn Decomposition Tool',
+    id: 'growth-accounting',
     guest: 'Hila Qu',
-    type: 'Interactive HTML/JS Widget',
     category: 'Growth Loops & Metrics',
-    desc: 'Decompose active users into New, Retained, Resurrected, and Churned cohorts to detect hidden retention leaks before top-of-funnel spend is wasted.',
-    features: ['MAU decomposition algorithm', 'Quick-ratio health gauge', 'Resurrection flywheel visualizer'],
-    prompt: 'Generate an interactive Growth Accounting & Cohort Churn Analyzer calculator based on Hila Qu\'s growth framework'
+    label: 'Growth accounting & churn decomposition tool',
+    prompt: "Generate an interactive Growth Accounting & Cohort Churn Analyzer calculator based on Hila Qu's growth framework"
   }
 ];
 
-export default function ArtifactsGallery({ onLaunchArtifact, onDiscussInChat }) {
+// Backwards-compatible alias for any legacy imports
+export const GALLERY_ARTIFACTS = STARTER_PROMPTS;
+
+function formatArtifactType(type) {
+  if (type === 'html') return 'HTML/JS Widget';
+  if (type === 'markdown') return 'Markdown Document';
+  return type ? `${type.toUpperCase()} Artifact` : 'Artifact';
+}
+
+function formatTimestamp(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+/**
+ * `artifacts` contains real, persisted artifacts for the current user/session.
+ * Renders live artifacts and starter prompts with search filtering and robust accessibility.
+ */
+export default function ArtifactsGallery({
+  artifacts = [],
+  isLoading = false,
+  onOpenArtifact,
+  onLaunchArtifact,
+  onDiscussInChat
+}) {
+  const [searchQuery, setSearchQuery] = React.useState('');
+
+  const filteredArtifacts = React.useMemo(() => {
+    if (!searchQuery.trim()) return artifacts;
+    const q = searchQuery.toLowerCase();
+    return artifacts.filter((a) =>
+      (a.title && a.title.toLowerCase().includes(q)) ||
+      (a.artifact_type && a.artifact_type.toLowerCase().includes(q))
+    );
+  }, [artifacts, searchQuery]);
+
   return (
     <div className="gallery-container">
+      <style>{`
+        .gallery-empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 64px 24px;
+          text-align: center;
+          color: var(--text-muted, #8b909c);
+        }
+        .gallery-empty-state p {
+          margin: 0;
+          font-weight: 600;
+          color: var(--text-secondary, #475569);
+        }
+        .gallery-empty-state span {
+          font-size: 0.86rem;
+          max-width: 360px;
+          color: var(--text-muted, #64748b);
+        }
+        .gallery-empty-state .spin {
+          animation: gallery-spin 0.8s linear infinite;
+        }
+        @keyframes gallery-spin {
+          to { transform: rotate(360deg); }
+        }
+        .gallery-section-heading {
+          font-size: 1.1rem;
+          font-weight: 600;
+          color: var(--text-primary, #0f172a);
+          margin: 40px 0 16px;
+        }
+        .gallery-search-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          margin-bottom: 20px;
+          flex-wrap: wrap;
+        }
+        .gallery-search-input-box {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: var(--card-bg, #ffffff);
+          border: 1px solid var(--border-subtle, #e2e8f0);
+          border-radius: 8px;
+          padding: 6px 12px;
+          width: 260px;
+        }
+        .gallery-search-input-box input {
+          border: none;
+          outline: none;
+          background: transparent;
+          font-size: 0.84rem;
+          color: var(--text-primary, #0f172a);
+          width: 100%;
+        }
+        .starter-prompt-tag {
+          font-size: 0.76rem;
+          font-weight: 600;
+          color: var(--accent-primary, #3b82f6);
+          margin-bottom: 8px;
+        }
+        .starter-prompt-text {
+          font-size: 0.95rem;
+          font-weight: 500;
+          color: var(--text-primary, #0f172a);
+          margin: 0 0 16px;
+          line-height: 1.45;
+        }
+      `}</style>
+
       <div className="gallery-hero">
         <div className="gallery-hero-badge">
           <Layers size={13} />
-          <span>Claude-Style Sandboxed Artifacts</span>
+          <span>Sandboxed artifacts</span>
         </div>
-        <h1 className="gallery-title">Interactive Artifacts & Calculators</h1>
+        <h1 className="gallery-title">Your artifacts</h1>
         <p className="gallery-desc">
-          Live, executable tools and frameworks that render natively beside your chat. Sandboxed in isolated origins with zero third-party tracking.
+          Markdown and HTML/JS artifacts you've generated in chat, kept here for reference.
+          Each one renders in an isolated iframe with no access to cookies or local storage.
         </p>
       </div>
 
-      <div className="gallery-grid">
-        {GALLERY_ARTIFACTS.map((art) => (
-          <div key={art.id} className="gallery-card">
-            <div className="gallery-card-top">
-              <div className="gallery-card-icon">
-                <Code2 size={18} />
+      {isLoading ? (
+        <div className="gallery-empty-state">
+          <Loader2 size={22} className="spin" />
+          <p>Loading your artifacts…</p>
+        </div>
+      ) : artifacts.length === 0 ? (
+        <div className="gallery-empty-state">
+          <Inbox size={22} />
+          <p>You haven't generated any artifacts yet.</p>
+          <span>Ask the assistant for a calculator, canvas, or essay — it'll show up here once it's created.</span>
+        </div>
+      ) : (
+        <>
+          {artifacts.length > 2 && (
+            <div className="gallery-search-row">
+              <span style={{ fontSize: '0.86rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                Showing {filteredArtifacts.length} of {artifacts.length} {artifacts.length === 1 ? 'artifact' : 'artifacts'}
+              </span>
+              <div className="gallery-search-input-box">
+                <input
+                  type="text"
+                  placeholder="Filter artifacts..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  aria-label="Filter artifacts"
+                />
               </div>
-              <div className="gallery-card-type-badge">{art.type}</div>
             </div>
+          )}
+          <div className="gallery-grid">
+            {filteredArtifacts.map((art, idx) => {
+              const timestamp = formatTimestamp(art.created_at);
+              const isHtml = art.artifact_type === 'html';
+              return (
+                <div key={art.id || `${art.title}-${idx}`} className="gallery-card">
+                  <div className="gallery-card-top">
+                    <div className="gallery-card-icon">
+                      {isHtml ? <Sliders size={18} /> : <Code2 size={18} />}
+                    </div>
+                    <div className="gallery-card-type-badge">{formatArtifactType(art.artifact_type)}</div>
+                  </div>
 
-            <h3 className="gallery-card-title">{art.title}</h3>
-            <div className="gallery-card-guest">Framework by {art.guest}</div>
-            <p className="gallery-card-desc">{art.desc}</p>
+                  <h3 className="gallery-card-title">{art.title || 'Untitled artifact'}</h3>
+                  {timestamp && (
+                    <div className="gallery-card-guest">
+                      <Clock size={12} style={{ display: 'inline', marginRight: 4 }} />
+                      {timestamp}
+                    </div>
+                  )}
 
-            <div className="gallery-card-features">
-              {art.features.map((feat, i) => (
-                <div key={i} className="gallery-feature-item">
-                  <CheckCircle2 size={12} className="feat-check" />
-                  <span>{feat}</span>
+                  <div className="gallery-card-actions">
+                    <button
+                      type="button"
+                      className="btn-gallery-launch"
+                      onClick={() => onOpenArtifact?.(art)}
+                    >
+                      <Sliders size={13} />
+                      <span>Open</span>
+                    </button>
+                    {onDiscussInChat && (
+                      <button
+                        type="button"
+                        className="btn-gallery-discuss"
+                        onClick={() => onDiscussInChat(`Explain how the "${art.title}" artifact works.`)}
+                        title="Discuss this artifact with the assistant"
+                        aria-label="Discuss this artifact with the assistant"
+                      >
+                        <MessageSquare size={13} />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              ))}
-            </div>
-
-            <div className="gallery-card-actions">
-              <button
-                type="button"
-                className="btn-gallery-launch"
-                onClick={() => onLaunchArtifact(art.prompt)}
-              >
-                <Sliders size={13} />
-                <span>Launch in Workspace</span>
-              </button>
-              <button
-                type="button"
-                className="btn-gallery-discuss"
-                onClick={() => onDiscussInChat(`Explain the mathematical methodology behind ${art.guest}'s ${art.title}`)}
-                title="Discuss methodology with Assistant"
-              >
-                <MessageSquare size={13} />
-              </button>
-            </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+        </>
+      )}
+
+      {/* Suggestions to help a user get started — explicitly not framed as existing artifacts */}
+      {onLaunchArtifact && (
+        <div>
+          <h2 className="gallery-section-heading">Not sure what to ask?</h2>
+          <div className="gallery-grid">
+            {STARTER_PROMPTS.map((p) => (
+              <div key={p.id} className="gallery-card">
+                <div className="starter-prompt-tag">{p.category} · {p.guest}</div>
+                <p className="starter-prompt-text">{p.label}</p>
+                <div className="gallery-card-actions">
+                  <button
+                    type="button"
+                    className="btn-gallery-launch"
+                    onClick={() => onLaunchArtifact(p.prompt)}
+                  >
+                    <Sliders size={13} />
+                    <span>Generate this</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Security Architecture Badge */}
       <div className="gallery-security-banner">
         <ShieldCheck size={16} color="var(--accent-emerald)" />
         <div className="gallery-security-text">
-          <strong>Enterprise Sandboxing:</strong> All rendered HTML/JS artifacts run inside isolated iframes with <code>sandbox="allow-scripts"</code>, blocking parent DOM access, cookies, and top-level navigation.
+          <strong>Sandboxed rendering:</strong> HTML/JS artifacts run inside isolated iframes with <code>sandbox="allow-scripts"</code>, blocking parent DOM access, cookies, and top-level navigation.
         </div>
       </div>
     </div>
