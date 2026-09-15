@@ -1,15 +1,17 @@
-# 🎙️ The Lenny Growth Assistant
+# 🎙️ LennyOS (The Lenny Growth Assistant)
 ### Enterprise AI Product & Growth Intelligence Platform
 > **Forward Deployed Engineer (FDE) Take-Home Assignment Deliverable**  
-> Grounded exclusively in 303 episodes of [Lenny's Podcast Transcripts](https://github.com/ChatPRD/lennys-podcast-transcripts) with over 15,000 indexed segments.
+> Grounded exclusively in 303 episodes of [Lenny's Podcast Transcripts](https://github.com/ChatPRD/lennys-podcast-transcripts) with over 15,000 indexed segments.  
+> 🌐 **Live Website:** [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/)  
+> 📦 **GitHub Repository:** [https://github.com/venky24K/lennyos](https://github.com/venky24K/lennyos)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python 3.11](https://img.shields.io/badge/Python-3.11-green.svg)](https://python.org) [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/) [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg)](https://react.dev/) [![Tests](https://img.shields.io/badge/Tests-19%20Passing-brightgreen.svg)](backend/tests/)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Cloud%20Run-success.svg?style=flat&logo=googlecloud)](https://oggway-labs-68853090847.asia-southeast1.run.app/) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python 3.11](https://img.shields.io/badge/Python-3.11-green.svg)](https://python.org) [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/) [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg)](https://react.dev/) [![Tests](https://img.shields.io/badge/Tests-19%20Passing-brightgreen.svg)](backend/tests/)
 
 ---
 
 ## 🌟 Overview & Key Capabilities
 
-The **Lenny Growth Assistant** is a full-stack, AI-powered conversational web application built for product managers, growth leads, and founders. It transforms hundreds of hours of raw podcast transcripts into actionable, grounded frameworks:
+The **Lenny Growth Assistant (LennyOS)** is a full-stack, AI-powered conversational web application built for product managers, growth leads, and founders. It transforms hundreds of hours of raw podcast transcripts into actionable, grounded frameworks:
 
 1. **Grounded Conversational Intelligence:** Answers PM and growth questions strictly from podcast transcripts, citing exact guests, episode titles, and clickable YouTube timestamp links (`https://www.youtube.com/watch?v=ID&t=Xs`).
 2. **Dedicated Ship 30 for 30 Content Skill:** Transforms insights into ~1,250-word atomic essays featuring irresistible hooks, 1-3-1 visual cadence, skimmable headings, and 48-hour implementation checklists (Nicolas Cole & Dickie Bush methodology).
@@ -103,15 +105,22 @@ Open **[http://localhost:5173](http://localhost:5173)** in your browser.
 
 ---
 
-### Option C: GCP Cloud Run (Production Deployment)
+### Option C: GCP Cloud Run (Live Production Deployment)
+
+The application is deployed live on Google Cloud Run:
+* 🌐 **Live Website:** [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/)
+* **Region:** `asia-southeast1`
+* **Service:** `oggway-labs`
+
+To deploy updates or deploy directly from source:
 ```bash
 # 1. Build and deploy via Cloud Build (uses unified multi-stage Dockerfile)
 gcloud builds submit --config cloudbuild.yaml
 
-# Or deploy directly from source
-gcloud run deploy lenny-assistant \
+# Or deploy directly from source to Cloud Run
+gcloud run deploy oggway-labs \
   --source . \
-  --region us-central1 \
+  --region asia-southeast1 \
   --memory 2Gi \
   --allow-unauthenticated
 ```
@@ -213,14 +222,14 @@ Treating AI-generated HTML as untrusted is critical. The Lenny Growth Assistant 
 
 | # | Deliverable | File / Location | Description |
 | :--- | :--- | :--- | :--- |
-| 1 | **Source Code** | Full Repository | Complete codebase with zero committed secrets and clean structure. |
-| 2 | **README.md** | [README.md](README.md) | Evaluator guide, quickstart, architecture, and configuration. |
-| 3 | **PRD** | [PRD.md](PRD.md) | Forward Deployment brief, JTBD, success metrics, assumptions, risks. |
-| 4 | **Design Spec** | [design.md](design.md) | UI/UX principles, design system tokens, states, accessibility. |
-| 5 | **Architecture** | [architecture.md](architecture.md) | DB schema, REST contracts, RAG pipeline, LLM routing, security. |
-| 6 | **Agent Transcripts** | [agent_transcripts/](agent_transcripts/) | Engineering transcripts & post-mortem of failed attempts and fixes. |
-| 7 | **Tests** | [backend/tests/](backend/tests/) & [tests/manual_test_plan.md](tests/manual_test_plan.md) | 19 automated pytest tests + manual UI verification plan. |
-| 8 | **Demo Video Script** | [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | 2–3 minute video presentation script and walkthrough instructions. |
+| 1 | **Source Code & Repo** | [venky24K/lennyos](https://github.com/venky24K/lennyos) | Complete GitHub repository with zero committed secrets and clean structure. |
+| 2 | **Live Deployment** | [Live Web App](https://oggway-labs-68853090847.asia-southeast1.run.app/) | Production unified container deployment running live on GCP Cloud Run (`asia-southeast1`). |
+| 3 | **README.md** | [README.md](README.md) | Evaluator guide, quickstart, architecture, live links, and configuration. |
+| 4 | **PRD** | [PRD.md](PRD.md) | Forward Deployment brief, JTBD, success metrics, assumptions, risks. |
+| 5 | **Design Spec** | [design.md](design.md) | UI/UX principles, design system tokens, states, accessibility. |
+| 6 | **Architecture** | [architecture.md](architecture.md) | DB schema, REST contracts, RAG pipeline, LLM routing, security. |
+| 7 | **Agent Transcripts** | [agent_transcripts/](agent_transcripts/) | Engineering transcripts & post-mortem of failed attempts and fixes. |
+| 8 | **Tests** | [backend/tests/](backend/tests/) & [tests/manual_test_plan.md](tests/manual_test_plan.md) | 19 automated pytest tests + manual UI verification plan. |
 
 ---
 

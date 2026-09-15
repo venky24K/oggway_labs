@@ -1,10 +1,12 @@
 # Product Requirements Document (PRD)
-## The Lenny Growth Assistant
+## LennyOS (The Lenny Growth Assistant)
 
 **Status:** Approved & Implemented  
 **Author:** Forward Deployed Engineer (FDE)  
 **Date:** September 2026  
 **Target Delivery:** Client Evaluation & Handoff  
+**Live Production URL:** [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/)  
+**GitHub Repository:** [https://github.com/venky24K/lennyos](https://github.com/venky24K/lennyos)  
 
 ---
 

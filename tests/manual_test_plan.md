@@ -1,14 +1,17 @@
 # Manual UI & End-to-End Test Plan
-## The Lenny Growth Assistant
+## LennyOS (The Lenny Growth Assistant)
 
 This document provides evaluators with a concise manual verification script to test all core UI flows, artifact rendering, security isolation, and model switching.
 
+**Live Production URL:** [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/)  
+**GitHub Repository:** [https://github.com/venky24K/lennyos](https://github.com/venky24K/lennyos)  
+
 ---
 
-### Prerequisites
-1. Backend running: `uvicorn backend.app.main:app --port 8000` (or `docker compose up -d`)
-2. Frontend running: `http://localhost:5173`
-3. Browser: Chrome, Brave, Firefox, or Edge
+### Prerequisites / Environments
+* **Option 1 (Live Production):** Open [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/)
+* **Option 2 (Local Development):** Backend running on port 8000 (`uvicorn backend.app.main:app --port 8000` or `docker compose up -d`) and Frontend on port 5173 (`http://localhost:5173`).
+* **Browser:** Chrome, Brave, Safari, Firefox, or Edge.
 
 ---
 

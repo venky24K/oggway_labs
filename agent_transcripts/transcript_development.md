@@ -1,9 +1,10 @@
 # Agent Development Transcript & Engineering Log
-## The Lenny Growth Assistant
+## LennyOS (The Lenny Growth Assistant)
 
 **Engagement:** Forward Deployed Engineer (FDE)  
 **Assistant System:** Antigravity AI Coding Agent  
-**Repository:** `oggway_labs`  
+**Repository:** [lennyos](https://github.com/venky24K/lennyos) (formerly `oggway_labs`)  
+**Live Production URL:** [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/)  
 
 ---
 
@@ -89,6 +90,14 @@
 ---
 
 ### Step 8: Packaging & Deliverables Finalization
-* Authored `PRD.md`, `design.md`, `architecture.md`, `README.md`, `DEMO_SCRIPT.md`.
+* Authored `PRD.md`, `design.md`, `architecture.md`, `README.md`.
 * Provided `docker-compose.yml`, `Dockerfile.backend`, `Dockerfile.frontend`, `.env.example`, `.gitignore`.
 * System is clean, modular, and ready for evaluator deployment.
+
+---
+
+### Step 9: Cloud Run Production Deployment & Repository Renaming
+* Deployed production unified container to Google Cloud Run (`asia-southeast1`) under service `oggway-labs`.
+* Confirmed live site operational at `https://oggway-labs-68853090847.asia-southeast1.run.app/`.
+* Synchronized repository rename to `lennyos` (`https://github.com/venky24K/lennyos`).
+* Updated all engineering deliverables, PRD, architecture, test plan, and README documentation with live links and repository references.

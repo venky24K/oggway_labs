@@ -2,7 +2,10 @@
 
 ## Take-Home Assignment
 
-### Build and deploy "The Lenny Growth Assistant"
+### Build and deploy "The Lenny Growth Assistant" (LennyOS)
+
+**Live Production Deployment:** [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/)  
+**GitHub Repository:** [https://github.com/venky24K/lennyos](https://github.com/venky24K/lennyos)  
 
 ---
 
@@ -107,7 +110,8 @@ A Forward Deployed Engineer must leave behind a solution another team can operat
 
 | # | Deliverable | What to include |
 |---|---|---|
-| **1** | **Public GitHub repository** | Complete source code with a sensible project structure and no committed secrets. |
+| **1** | **Public GitHub repository** | Complete source code with a sensible project structure: [https://github.com/venky24K/lennyos](https://github.com/venky24K/lennyos) |
+| **-** | **Live Production App** | Live deployed web application on Cloud Run: [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/) |
 | **2** | **README.md** | Architecture overview, prerequisites, installation, environment variables, local and cloud model setup, run commands, tests, and troubleshooting. |
 | **3** | **PRD** | User, problem, success metric, assumptions, scope, flows, acceptance criteria, risks, and implementation plan. |
 | **4** | **design.md** | Your UI/UX principles, information architecture, key interaction states, responsive behavior, accessibility considerations, and design decisions. |

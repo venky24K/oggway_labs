@@ -1,8 +1,10 @@
 # Technical Architecture & System Specification
-## The Lenny Growth Assistant
+## LennyOS (The Lenny Growth Assistant)
 
 **Document Status:** Complete & Verified  
-**Target Platform:** Linux/macOS/Windows, Docker, Supabase, Local & Cloud LLMs  
+**Live Production:** [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/)  
+**Repository:** [https://github.com/venky24K/lennyos](https://github.com/venky24K/lennyos)  
+**Target Platform:** Linux/macOS/Windows, Docker, Supabase, Local & Cloud LLMs, GCP Cloud Run  
 
 ---
 
@@ -164,7 +166,7 @@ CREATE INDEX idx_artifacts_session ON artifacts(session_id);
   - `meta` ("who are you", "what can you do"): Bypasses retrieval, explains 303 podcast episodes, YouTube deep-links, Ship 30 essays, and interactive artifacts.
   - `out_of_scope` (weather, cooking, general trivia): Politely clarifies that knowledge is strictly focused on PM and growth, offering product topic pivots.
   - `ship30` / `artifact` / `domain`: Runs full hybrid RAG with entity boosting and YouTube citations.
-* **Frontend Prompts Library:** Centralized in [`frontend/src/prompts.js`](file:///c:/Users/SRMAP/Documents/Github/oggway_labs/frontend/src/prompts.js) (and [`prompts.ts`](file:///c:/Users/SRMAP/Documents/Github/oggway_labs/frontend/src/prompts.ts)) to provide structured starter cards and playbook shortcuts.
+* **Frontend Prompts Library:** Centralized in [`frontend/src/prompts.js`](frontend/src/prompts.js) to provide structured starter cards and playbook shortcuts.
 
 ### 4.4 Flexible Provider Fallback Chain
 ```
@@ -230,10 +232,12 @@ The agent architecture strictly mirrors the **Anthropic Claude Agent SDK** and *
 2. **One-Command Docker Compose:**
    * `docker compose up -d`
    * Spins up Postgres 16, FastAPI Backend, and Nginx Frontend.
-3. **GCP Cloud Run (Production — Unified Container):**
+3. **GCP Cloud Run (Production — Live Unified Container):**
+   * 🌐 **Live Deployed App:** [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/)
+   * **Region:** `asia-southeast1` | **Service:** `oggway-labs`
    * Uses the multi-stage `Dockerfile` (builds React SPA + FastAPI into a single container).
    * Deploy via Cloud Build: `gcloud builds submit --config cloudbuild.yaml`
-   * Or direct deploy: `gcloud run deploy lenny-assistant --source . --region us-central1 --memory 2Gi --allow-unauthenticated`
+   * Or direct deploy: `gcloud run deploy oggway-labs --source . --region asia-southeast1 --memory 2Gi --allow-unauthenticated`
    * Set environment variables in the Cloud Run console (e.g., `DEFAULT_PROVIDER`, API keys).
    * The RAG index loads lazily in a background thread to guarantee fast port binding within Cloud Run's health check window.
 4. **Supabase + Railway / Render:**

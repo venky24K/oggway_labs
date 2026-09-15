@@ -1,7 +1,10 @@
 # Design System & UI/UX Specification
-## The Lenny Growth Assistant
+## LennyOS (The Lenny Growth Assistant)
 
 **Document Status:** Complete & Verified  
+**Live Production URL:** [https://oggway-labs-68853090847.asia-southeast1.run.app/](https://oggway-labs-68853090847.asia-southeast1.run.app/)  
+**GitHub Repository:** [https://github.com/venky24K/lennyos](https://github.com/venky24K/lennyos)  
+**Brand Identity:** LennyOS by Oggway Labs  
 **Design Philosophy:** Editorial Authority meets Modern AI Studio  
 
 ---
