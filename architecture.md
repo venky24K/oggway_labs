@@ -230,6 +230,12 @@ The agent architecture strictly mirrors the **Anthropic Claude Agent SDK** and *
 2. **One-Command Docker Compose:**
    * `docker compose up -d`
    * Spins up Postgres 16, FastAPI Backend, and Nginx Frontend.
-3. **Cloud Deployment (Supabase + Railway):**
+3. **GCP Cloud Run (Production — Unified Container):**
+   * Uses the multi-stage `Dockerfile` (builds React SPA + FastAPI into a single container).
+   * Deploy via Cloud Build: `gcloud builds submit --config cloudbuild.yaml`
+   * Or direct deploy: `gcloud run deploy lenny-assistant --source . --region us-central1 --memory 2Gi --allow-unauthenticated`
+   * Set environment variables in the Cloud Run console (e.g., `DEFAULT_PROVIDER`, API keys).
+   * The RAG index loads lazily in a background thread to guarantee fast port binding within Cloud Run's health check window.
+4. **Supabase + Railway / Render:**
    * Connect `DATABASE_URL=postgresql+asyncpg://...supabase.co:5432/postgres`.
-   * Deploy backend to Railway or Render with Dockerfile.backend.
+   * Deploy backend to Railway or Render with `Dockerfile.backend`.

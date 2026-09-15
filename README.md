@@ -3,6 +3,8 @@
 > **Forward Deployed Engineer (FDE) Take-Home Assignment Deliverable**  
 > Grounded exclusively in 303 episodes of [Lenny's Podcast Transcripts](https://github.com/ChatPRD/lennys-podcast-transcripts) with over 15,000 indexed segments.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Python 3.11](https://img.shields.io/badge/Python-3.11-green.svg)](https://python.org) [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/) [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg)](https://react.dev/) [![Tests](https://img.shields.io/badge/Tests-19%20Passing-brightgreen.svg)](backend/tests/)
+
 ---
 
 ## 🌟 Overview & Key Capabilities
@@ -58,8 +60,8 @@ The **Lenny Growth Assistant** is a full-stack, AI-powered conversational web ap
 ### Option A: One-Command Startup with Docker Compose (Recommended)
 ```bash
 # 1. Clone repository
-git clone https://github.com/SRMAP/oggway_labs.git
-cd oggway_labs
+git clone https://github.com/venky24K/lennyos.git
+cd lennyos
 
 # 2. Copy environment file
 cp .env.example .env
@@ -98,6 +100,24 @@ npm install
 npm run dev
 ```
 Open **[http://localhost:5173](http://localhost:5173)** in your browser.
+
+---
+
+### Option C: GCP Cloud Run (Production Deployment)
+```bash
+# 1. Build and deploy via Cloud Build (uses unified multi-stage Dockerfile)
+gcloud builds submit --config cloudbuild.yaml
+
+# Or deploy directly from source
+gcloud run deploy lenny-assistant \
+  --source . \
+  --region us-central1 \
+  --memory 2Gi \
+  --allow-unauthenticated
+```
+* Set environment variables (`DEFAULT_PROVIDER`, `GEMINI_API_KEY`, etc.) in the **Cloud Run Console → Edit & Deploy → Variables**.
+* The unified `Dockerfile` builds the React SPA and FastAPI backend into a single container serving on port 8080.
+* The RAG index loads lazily in a background thread to meet Cloud Run's health check window.
 
 ---
 
