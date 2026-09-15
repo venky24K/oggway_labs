@@ -53,7 +53,7 @@ export default function SettingsModal({
   initialTab = 'models'
 }) {
   const [activeTab, setActiveTab] = useState(initialTab || 'models'); // 'models' | 'local' | 'main' | 'database'
-  const [provider, setProvider] = useState(currentProvider || 'ollama');
+  const [provider, setProvider] = useState(currentProvider || 'fallback');
   const [activeModelId, setActiveModelId] = useState(currentModel || 'fallback-rag');
   const [searchFilter, setSearchFilter] = useState('');
   const [modelToDelete, setModelToDelete] = useState(null);
@@ -76,7 +76,9 @@ export default function SettingsModal({
 
   // Local Ollama
   const [ollamaUrl, setOllamaUrl] = useState('http://127.0.0.1:11434');
-  const [ollamaModel, setOllamaModel] = useState(currentModel || 'qwen3.5:2b');
+  const [ollamaModel, setOllamaModel] = useState(
+    currentModel && currentProvider === 'ollama' ? currentModel : 'llama3.2'
+  );
   const [detectedModels, setDetectedModels] = useState([]);
   const [scanning, setScanning] = useState(false);
   const [ollamaConnected, setOllamaConnected] = useState(false);
@@ -145,7 +147,8 @@ export default function SettingsModal({
 
   // Check if provider has an API key configured (for cloud providers) or is local/fallback
   const isProviderConfigured = (p) => {
-    if (p === 'fallback' || p === 'ollama') return true;
+    if (p === 'fallback') return true;
+    if (p === 'ollama') return Boolean(ollamaConnected || modelStatus?.ollama_available);
     if (p === 'gemini') {
       return Boolean(
         (geminiKey && geminiKey.trim().length > 5) ||
@@ -172,7 +175,7 @@ export default function SettingsModal({
 
   const isModelAvailable = (m) => {
     if (m.provider === 'fallback') return true;
-    if (m.provider === 'ollama') return true; // Scanned or custom-added Ollama model
+    if (m.provider === 'ollama') return Boolean(ollamaConnected || modelStatus?.ollama_available);
     return isProviderConfigured(m.provider); // Cloud providers
   };
 
@@ -497,14 +500,20 @@ export default function SettingsModal({
                         onClick={() => {
                           if (isConfigured) handleToggleModel(m);
                         }}
-                        title={isConfigured ? '' : `API key required in Main Providers to enable ${m.name}`}
+                        title={
+                          isConfigured
+                            ? ''
+                            : m.provider === 'ollama'
+                            ? 'Ollama is offline or not running'
+                            : `API key required in Main Providers to enable ${m.name}`
+                        }
                       >
                         <div className="model-col-provider">{m.providerLabel}</div>
                         <div className="model-col-name">
                           <span>{m.name}</span>
                           {!isConfigured && (
                             <span className="model-key-warning">
-                              API key required
+                              {m.provider === 'ollama' ? 'Ollama offline' : 'API key required'}
                             </span>
                           )}
                         </div>

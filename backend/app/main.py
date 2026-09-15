@@ -107,20 +107,27 @@ async def get_models_status(endpoint: Optional[str] = None):
     if settings.GEMINI_API_KEY and len(settings.GEMINI_API_KEY.strip()) > 5:
         available.append("gemini")
 
+    # If configured provider is not available, fall back to an available provider
+    effective_provider = settings.DEFAULT_PROVIDER
+    if effective_provider not in available:
+        effective_provider = "fallback"
+
     active_model = "fallback-rag"
-    if settings.DEFAULT_PROVIDER == "ollama":
+    if effective_provider == "ollama" and ollama_ok:
         active_model = settings.OLLAMA_MODEL
-    elif settings.DEFAULT_PROVIDER == "openai":
+    elif effective_provider == "openai":
         active_model = settings.OPENAI_MODEL
-    elif settings.DEFAULT_PROVIDER == "anthropic":
+    elif effective_provider == "anthropic":
         active_model = settings.ANTHROPIC_MODEL
-    elif settings.DEFAULT_PROVIDER == "gemini":
+    elif effective_provider == "gemini":
         active_model = settings.GEMINI_MODEL
+    else:
+        active_model = "fallback-rag"
 
     return ModelStatusResponse(
         ollama_available=ollama_ok,
         ollama_models=ollama_models,
-        current_provider=settings.DEFAULT_PROVIDER,
+        current_provider=effective_provider,
         current_model=active_model,
         available_providers=available,
         database_connected=True,
@@ -296,19 +303,25 @@ async def update_settings(payload: SettingsUpdatePayload):
     if settings.GEMINI_API_KEY and len(settings.GEMINI_API_KEY.strip()) > 5:
         available.append("gemini")
 
+    effective_provider = settings.DEFAULT_PROVIDER
+    if effective_provider not in available:
+        effective_provider = "fallback"
+
     active_model = "fallback-rag"
-    if settings.DEFAULT_PROVIDER == "ollama":
+    if effective_provider == "ollama" and "ollama" in available:
         active_model = settings.OLLAMA_MODEL
-    elif settings.DEFAULT_PROVIDER == "openai":
+    elif effective_provider == "openai":
         active_model = settings.OPENAI_MODEL
-    elif settings.DEFAULT_PROVIDER == "anthropic":
+    elif effective_provider == "anthropic":
         active_model = settings.ANTHROPIC_MODEL
-    elif settings.DEFAULT_PROVIDER == "gemini":
+    elif effective_provider == "gemini":
         active_model = settings.GEMINI_MODEL
+    else:
+        active_model = "fallback-rag"
 
     return {
         "status": "success",
-        "current_provider": settings.DEFAULT_PROVIDER,
+        "current_provider": effective_provider,
         "current_model": active_model,
         "available_providers": available,
         "database_type": "sqlite" if database.using_sqlite else "postgresql"

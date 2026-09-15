@@ -44,8 +44,8 @@ export default function App() {
   const [activeArtifact, setActiveArtifact] = useState(null);
   const [isArtifactExpanded, setIsArtifactExpanded] = useState(false);
   const [modelStatus, setModelStatus] = useState(null);
-  const [currentProvider, setCurrentProvider] = useState('ollama');
-  const [currentModel, setCurrentModel] = useState('qwen3.5:2b');
+  const [currentProvider, setCurrentProvider] = useState('fallback');
+  const [currentModel, setCurrentModel] = useState('fallback-rag');
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState('models');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -62,6 +62,13 @@ export default function App() {
 
   const messagesEndRef = useRef(null);
   const modelDropdownRef = useRef(null);
+
+  const getModelDisplayName = (modelId) => {
+    if (!modelId) return 'Select Model';
+    if (modelId === 'fallback-rag') return 'Grounded Fallback';
+    const found = QUICK_MODELS.find((m) => m.id === modelId);
+    return found ? found.name : modelId;
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -89,7 +96,8 @@ export default function App() {
   }, []);
 
   const isProviderAvailable = (prov) => {
-    if (prov === 'fallback' || prov === 'ollama') return true;
+    if (prov === 'fallback') return true;
+    if (prov === 'ollama') return Boolean(modelStatus?.ollama_available);
     return Boolean(modelStatus?.available_providers?.includes(prov));
   };
 
@@ -103,8 +111,8 @@ export default function App() {
 
     const combined = [];
 
-    // 1. Add ONLY detected Ollama models from scan
-    if (modelStatus?.ollama_models) {
+    // 1. Add ONLY detected Ollama models from scan IF Ollama is running
+    if (modelStatus?.ollama_available && modelStatus?.ollama_models) {
       modelStatus.ollama_models.forEach((om) => {
         if (!combined.some((m) => m.id === om)) {
           combined.push({ id: om, name: om, provider: 'ollama' });
@@ -150,15 +158,22 @@ export default function App() {
 
       const isCurrentOllamaValid =
         currentProvider !== 'ollama' ||
-        isCustomOllama ||
-        !modelStatus.ollama_models ||
-        modelStatus.ollama_models.length === 0 ||
-        modelStatus.ollama_models.includes(currentModel);
+        (Boolean(modelStatus.ollama_available) && (
+          isCustomOllama ||
+          (modelStatus.ollama_models && modelStatus.ollama_models.includes(currentModel))
+        ));
 
       if (!isCurrentAvailable || !isCurrentOllamaValid) {
         if (modelStatus.ollama_available && modelStatus.ollama_models?.length) {
           setCurrentProvider('ollama');
           setCurrentModel(modelStatus.ollama_models[0]);
+        } else if (
+          modelStatus.current_provider &&
+          modelStatus.current_provider !== 'ollama' &&
+          modelStatus.available_providers?.includes(modelStatus.current_provider)
+        ) {
+          setCurrentProvider(modelStatus.current_provider);
+          setCurrentModel(modelStatus.current_model || 'fallback-rag');
         } else {
           setCurrentProvider('fallback');
           setCurrentModel('fallback-rag');
@@ -173,8 +188,14 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setModelStatus(data);
-        if (data.current_provider && (data.available_providers?.includes(data.current_provider) || data.current_provider === 'ollama' || data.current_provider === 'fallback')) {
+        if (data.current_provider && data.available_providers?.includes(data.current_provider)) {
           setCurrentProvider(data.current_provider);
+          if (data.current_model) {
+            setCurrentModel(data.current_model);
+          }
+        } else {
+          setCurrentProvider('fallback');
+          setCurrentModel('fallback-rag');
         }
       }
     } catch (e) {
@@ -407,9 +428,9 @@ export default function App() {
                 type="button"
                 className="model-selector-btn"
                 onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                title={`Active model: ${currentModel}`}
+                title={`Active model: ${getModelDisplayName(currentModel)}`}
               >
-                <span className="model-name-text">{currentModel}</span>
+                <span className="model-name-text">{getModelDisplayName(currentModel)}</span>
                 <ChevronDown
                   size={13}
                   className={`dropdown-chevron ${isModelDropdownOpen ? 'open' : ''}`}
